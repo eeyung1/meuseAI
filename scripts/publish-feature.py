@@ -48,7 +48,8 @@ def github_api(endpoint, method="GET", data=None):
             return {"error": e.code, "detail": err_body}
 
 def push_branch(branch, worktree_dir=None):
-    cwd = worktree_dir if worktree_dir else os.getcwd()
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    cwd = worktree_dir if worktree_dir else repo_root
     print(f"[*] Pushing branch '{branch}' to origin from '{cwd}'...")
     res = subprocess.run(["git", "push", "-u", "origin", branch], cwd=cwd, capture_output=True, text=True)
     if res.returncode != 0:

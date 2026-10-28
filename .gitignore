@@ -1,3 +1,6 @@
 .agent-worktrees/
 .agent-coordination-lock/
+__pycache__/
+*.pyc
+
 
