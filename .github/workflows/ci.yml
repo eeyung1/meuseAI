@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'agent/**', 'feat/**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test & Verify
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: meuseai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d meuseai_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      MEUSEAI_TEST_POSTGRES_DSN: postgres://test:test@localhost:5432/meuseai_test?sslmode=disable
+      CGO_ENABLED: 1
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Go Vet
+        run: go vet ./...
+
+      - name: Run Tests (PostgreSQL & SQLite)
+        run: go test -v -race ./...
+
+      - name: Validate SQLite Schema Syntax
+        run: python3 -c "import sqlite3; sqlite3.connect(':memory:').executescript(open('db/schema.sqlite').read())"
