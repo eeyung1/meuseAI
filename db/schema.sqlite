@@ -1,0 +1,53 @@
+-- Version 1: student journey foundation. Applied transactionally by db.Migrate.
+CREATE TABLE students (
+    id VARCHAR(64) NOT NULL PRIMARY KEY,
+    full_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    verification_token VARCHAR(128) UNIQUE,
+    consent_timestamp TIMESTAMP NOT NULL,
+    unsubscribe_token VARCHAR(64) NOT NULL UNIQUE,
+    unsubscribed_at TIMESTAMP,
+    current_stage VARCHAR(32) NOT NULL DEFAULT 'day_1',
+    engagement_status VARCHAR(32) NOT NULL DEFAULT 'pending',
+    funnel_tier VARCHAR(32) NOT NULL DEFAULT 'free_week',
+    payment_status VARCHAR(32) NOT NULL DEFAULT 'pending',
+    tier_2_ready BOOLEAN NOT NULL DEFAULT FALSE,
+    xp INTEGER NOT NULL DEFAULT 0 CHECK (xp >= 0),
+    streak_days INTEGER NOT NULL DEFAULT 1 CHECK (streak_days >= 0),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX idx_students_email_lower ON students (LOWER(email));
+CREATE INDEX idx_students_stage_status ON students (current_stage, engagement_status);
+CREATE TABLE student_progress (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id VARCHAR(64) NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    day_number INTEGER NOT NULL CHECK (day_number BETWEEN 1 AND 4),
+    completed BOOLEAN NOT NULL DEFAULT FALSE,
+    submission_payload TEXT,
+    completed_at TIMESTAMP,
+    last_nudge_at TIMESTAMP,
+    UNIQUE (student_id, day_number)
+);
+CREATE TABLE payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reference VARCHAR(128) NOT NULL UNIQUE,
+    student_id VARCHAR(64) NOT NULL REFERENCES students(id),
+    amount_kobo BIGINT NOT NULL CHECK (amount_kobo > 0),
+    currency VARCHAR(8) NOT NULL DEFAULT 'NGN',
+    tier_unlocked VARCHAR(32) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    paystack_signature VARCHAR(255),
+    raw_payload TEXT CHECK (raw_payload IS NULL OR json_valid(raw_payload)),
+    paid_at TIMESTAMP
+);
+CREATE TABLE activity_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id VARCHAR(64) REFERENCES students(id) ON DELETE SET NULL,
+    event_type VARCHAR(64) NOT NULL,
+    details TEXT CHECK (details IS NULL OR json_valid(details)),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_payments_student ON payments (student_id);
+CREATE INDEX idx_activity_student_created ON activity_logs (student_id, created_at);
