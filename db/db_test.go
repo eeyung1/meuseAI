@@ -346,3 +346,20 @@ func TestOpenFailures(t *testing.T) {
 		t.Fatal("canceled context unexpectedly opened database")
 	}
 }
+
+func TestPostgresSchemaHelpers(t *testing.T) {
+	if !validIdentifier("meuseai") || !validIdentifier("meuse_ai_v2") || !validIdentifier("_private") {
+		t.Fatal("expected valid identifiers")
+	}
+	if validIdentifier("") || validIdentifier("meuse-ai") || validIdentifier("123abc") || validIdentifier("drop schema;") {
+		t.Fatal("expected invalid identifiers")
+	}
+	urlDSN := withPostgresSearchPath("postgres://user:pass@localhost:5432/postgres?sslmode=disable", "meuseai")
+	if !strings.Contains(urlDSN, "search_path=meuseai") {
+		t.Fatalf("expected search_path in url DSN, got %s", urlDSN)
+	}
+	kvDSN := withPostgresSearchPath("user=postgres password=secret dbname=postgres", "meuseai")
+	if !strings.Contains(kvDSN, "search_path=meuseai") {
+		t.Fatalf("expected search_path in key-value DSN, got %s", kvDSN)
+	}
+}

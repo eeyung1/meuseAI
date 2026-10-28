@@ -26,9 +26,12 @@ const (
 // SQLite requires CGO and a C compiler. DSN is a PostgreSQL URL/connection string
 // or a SQLite filename/URI; an empty SQLite DSN selects an in-memory database.
 // PostgreSQL DSNs should explicitly configure sslmode for the deployment.
+// Schema specifies an isolated PostgreSQL schema (e.g. "meuseai") for shared
+// databases like Supabase slots.
 type Config struct {
 	Driver          string
 	DSN             string
+	Schema          string
 	MaxOpenConns    int
 	MaxIdleConns    int
 	ConnMaxLifetime time.Duration
@@ -54,6 +57,12 @@ func Open(ctx context.Context, cfg Config) (*DB, error) {
 		driver, dialect = "postgres", Postgres
 		if strings.TrimSpace(cfg.DSN) == "" {
 			return nil, errors.New("postgres requires a DSN")
+		}
+		if cfg.Schema != "" {
+			if !validIdentifier(cfg.Schema) {
+				return nil, fmt.Errorf("invalid schema name %q", cfg.Schema)
+			}
+			cfg.DSN = withPostgresSearchPath(cfg.DSN, cfg.Schema)
 		}
 	case "sqlite", "sqlite3":
 		driver, dialect = "sqlite3", SQLite
@@ -100,7 +109,12 @@ func Open(ctx context.Context, cfg Config) (*DB, error) {
 	pool.SetConnMaxLifetime(lifetime)
 	database := &DB{DB: pool, Dialect: dialect}
 	if err = pool.PingContext(ctx); err == nil {
-		err = database.Migrate(ctx)
+		if cfg.Schema != "" && dialect == Postgres {
+			_, err = pool.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", cfg.Schema))
+		}
+		if err == nil {
+			err = database.Migrate(ctx)
+		}
 	}
 	if err != nil {
 		pool.Close()
@@ -136,4 +150,35 @@ func isMemoryDSN(dsn string) bool {
 	base, query, _ := strings.Cut(dsn, "?")
 	values, _ := url.ParseQuery(query)
 	return base == ":memory:" || base == "file::memory:" || values.Get("mode") == "memory"
+}
+
+func validIdentifier(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i, r := range name {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || r == '_' || (i > 0 && r >= '0' && r <= '9') {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func withPostgresSearchPath(dsn, schema string) string {
+	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
+		if u, err := url.Parse(dsn); err == nil {
+			q := u.Query()
+			if q.Get("search_path") == "" {
+				q.Set("search_path", schema)
+				u.RawQuery = q.Encode()
+				return u.String()
+			}
+		}
+		return dsn
+	}
+	if !strings.Contains(dsn, "search_path=") {
+		return strings.TrimSpace(dsn) + " search_path=" + schema
+	}
+	return dsn
 }
