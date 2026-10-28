@@ -2,5 +2,9 @@
 .agent-coordination-lock/
 __pycache__/
 *.pyc
-
-
+bin/
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.local

@@ -1,17 +1,44 @@
 package server
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"log"
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/eeyung1/meuseAI/db"
 	"github.com/eeyung1/meuseAI/services"
 )
+
+func loadEnvFile(path string) {
+	f, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, val, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		val = strings.TrimSpace(val)
+		val = strings.Trim(val, `"'`)
+		if _, exists := os.LookupEnv(key); !exists {
+			os.Setenv(key, val)
+		}
+	}
+}
 
 func ConfigFromEnv() (Config, error) {
 	config := Config{Address: os.Getenv("MEUSEAI_ADDR"), PublicURL: os.Getenv("MEUSEAI_PUBLIC_URL"), SessionKey: []byte(os.Getenv("MEUSEAI_SESSION_KEY")), AdminToken: os.Getenv("MEUSEAI_ADMIN_TOKEN"), PaystackSecret: os.Getenv("PAYSTACK_SECRET_KEY"), LovableURL: os.Getenv("MEUSEAI_LOVABLE_URL"), OnboardingURL: os.Getenv("MEUSEAI_ONBOARDING_URL"), Logger: log.New(os.Stdout, "meuseai ", log.LstdFlags), Database: db.Config{Driver: os.Getenv("MEUSEAI_DB_DRIVER"), DSN: os.Getenv("MEUSEAI_DB_DSN")}}
@@ -44,7 +71,9 @@ func ConfigFromEnv() (Config, error) {
 	}
 	return config, nil
 }
+
 func Main() error {
+	loadEnvFile(".env")
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	config, err := ConfigFromEnv()
