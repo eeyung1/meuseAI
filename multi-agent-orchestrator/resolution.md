@@ -91,3 +91,81 @@ Append-only completed-work evidence.
 - Worktree: /home/recoding/Projects/meuseAI/.agent-worktrees/task-drip-engine on branch agent/task-drip-engine (rebased on main 55b959d).
 - State: WORKING in generation 11.
 - Status: Officially unblocked and authorized by ORCHESTRATOR to implement and locally validate.
+
+## 2026-10-28T20:51:20+00:00 — task-paystack-monetization local handoff
+- Session Codex-worker-20261028-e39b845b, claim claim-21e5a749cef86ffb1b718a5f2746e91b, generation 12; user explicitly authorized coordination recovery before implementation.
+- Branch agent/task-paystack-monetization-2746e91b; worktree /home/recoding/Projects/meuseAI/.agent-worktrees/task-paystack-monetization-2746e91b; rebased base 48e2edb43bff7e0a7ef39db0fffa88711c9af736.
+- Commit be03cf04afdb7cf061c478838420e2feaa1c3094 (feat: add Paystack checkout and payment provisioning pipeline). Four files only: handlers/payment.go, handlers/payment_test.go, services/paystack.go, services/paystack_test.go. Clean worktree; no attribution trailers.
+- API: services.NewPaystack(secret, optionalHTTPClient); handlers.NewPayment(PaymentConfig{Database,Paystack,StudentIdentity,AdminAuthorized}).Register(mux). POST /api/v1/payments/checkout accepts tier (default tier_1); authenticated student identity must come from trusted server auth callback. Tier 1 requires verified/subscribed student, completed Day 4 and conversion_gate/free_week. Server-fixed NGN amounts: tier_1=500000 kobo, tier_2=2500000 kobo. Tier 2 requires manual readiness plus Tier 1 access. Admin callback defaults closed; POST /api/v1/admin/toggle-tier-2 accepts student_id/tier_2_ready.
+- Webhook: raw-body HMAC-SHA512 authentication with constant-time comparison, size limit, known pending reference, stored price/currency/owner email checks. Student lock serializes concurrent references/deliveries. Payment success, access and provisioning audit events commit atomically; retries do not repeat events or downgrade Tier 2.
+- Provisioning: durable activity_logs event lovable_provisioning_requested (or tier_2_provisioning_requested) with reference/tier, once per access upgrade; payment_success once per reference. No external credential delivery in webhook.
+- Exact validation prefix: env GOTOOLCHAIN=local GOCACHE=/tmp/meuseai-gocache GOPROXY=off /home/recoding/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.10.linux-amd64/bin/go
+- Validation: test -v ./handlers -run TestPayment PASS; test -v ./services -run TestPaystack PASS; test -race ./... PASS (db 1.204s, handlers 1.481s, services 1.173s); vet ./... PASS; staged diff --check PASS.
+- Coverage: Tier 1/Tier 2 journey; unsigned/tampered/malformed/mismatched amount/currency/customer/unknown reference rejection; identity and eligibility; provider request shape; malformed/oversized/malicious provider responses; secret redaction; cancellation; concurrent duplicate and distinct payment references with one provisioning event; audit rollback and retry; Tier 2 readiness revocation; default-deny admin callback.
+- PostgreSQL journey/concurrency explicitly SKIPPED locally (MEUSEAI_TEST_POSTGRES_DSN unavailable); configured tests use isolated temporary schemas. All provider requests mocked; no real payment/network transaction executed, no live credentials used.
+- References checked: https://paystack.com/docs/payments/webhooks/ and https://paystack.com/docs/api/transaction/ (HMAC-SHA512/raw payload, initialize request/response and metadata).
+- Remaining integration gates/owner: Planner publishes, runs PostgreSQL CI at exact SHA, reviews and merges. Server task supplies session/admin callbacks and rate limiting/CSRF as appropriate. A provisioning consumer must process persisted events to deliver Lovable credentials idempotently. Ambiguous provider errors retain pending records for reconciliation; no refund or pending-payment expiry worker in this task. Root AGENTS.md bootstrap remains a separate documentation scope.
+- Intended release: validation-backed --complete, followed by Task 4 coordination projection repair if required under the user's explicit repair authorization; no worker push/PR/merge/deployment.
+
+## task-paystack-monetization — claim-21e5a749cef86ffb1b718a5f2746e91b
+- Session: Codex-worker-20261028-e39b845b
+- State: COMPLETE
+- Validation: /home/recoding/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.10.linux-amd64/bin/go test -race ./...
+- Evidence: ok  	github.com/eeyung1/meuseAI/db	(cached); ok  	github.com/eeyung1/meuseAI/handlers	(cached); ok  	github.com/eeyung1/meuseAI/services	(cached)
+- Recorded UTC: 2026-10-28T20:51:23Z
+
+- 2026-10-28T20:51:36+00:00 — Task 4 final completion/release audit: supported --complete returned COMPLETE with full race suite PASS. Authorized projection repair synchronized structured generation 13, session COMPLETE, claim released; other ownership preserved. Worktree clean, commit be03cf04afdb7cf061c478838420e2feaa1c3094. Publication/CI/merge pending with Planner.
+
+- 2026-10-28T20:52:08+00:00 — Task 5 auto-repeat activation audit: branch/worktree created; structured claim consistency FAILED (generation 14 ACTIVE/no claim). No implementation/tests/commit. Exact reservation retained in coordination.md. Task 4 remains COMPLETE with released claim and clean committed handoff.
+
+## 2026-10-28T21:00:36+00:00 — task-telemetry-dashboard local handoff
+- Owner/session Codex-worker-20261028-df9f6e28; token codex-dashboard-20261028-f9a8, generation 15 verified before staging. User explicitly authorized Task 5 coordination repair and execution.
+- Branch agent/task-telemetry-dashboard; worktree /home/recoding/Projects/meuseAI/.agent-worktrees/task-telemetry-dashboard; base 48e2edb43bff7e0a7ef39db0fffa88711c9af736.
+- Commit 74812831b8ab1118fe0a73f3074665d0e5979194 (feat: add live student dashboard and isolated SSE telemetry). Nine owned files; clean worktree, no attribution trailers.
+- Files: handlers/dashboard.go, handlers/dashboard_test.go, telemetry/sse.go, telemetry/sse_test.go, static/assets.go, static/dashboard.html, static/dashboard.css, static/dashboard.js, static/dashboard.test.cjs. Root prototype, schemas, dependencies and other worker files unchanged.
+- Implementation: handlers.NewDashboard(db, telemetry.NewHub(), trustedStudentIdentity).Register(mux) registers GET /dashboard, /assets/dashboard.css, /assets/dashboard.js, /api/v1/dashboard/me and /api/v1/telemetry/stream. Embed assets deploy with binary; no CDN/runtime frontend dependencies. Dark blue/electric yellow design follows repository prototype, replacing sample data and simulated actions with live API state. Responsive circular skill hub, keyboard-accessible module inspector, XP/streak, pseudonymous cohort ranks, own activity, real exercise POST and guarded Paystack checkout navigation; honest load/failure/session/reconnect states. No client-only XP or unlocks.
+- Snapshot uses transactional reads, completion/prerequisite/email/subscription/lapse gates, Tier 1 access, tie-aware ranks and own safe activity summaries. No peer names/email, tokens, submission payloads, raw audit details or private orchestrator logs exposed.
+- SSE: authenticated student-specific streams; PublishStudent for own activity, cohort rank/announcement events, bounded clients/per-student streams, bounded queues with slow-client eviction, heartbeat, cancellation, write deadlines and Close. RunTelemetry(ctx, interval) bridges persisted activity to invalidation events; clients fetch snapshots on connect/reconnect and every 30s to recover missed events. SSE is not durable replay; no delivery guarantees claimed.
+- Exact Go prefix: env GOTOOLCHAIN=local GOCACHE=/tmp/meuseai-gocache GOPROXY=off /home/recoding/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.10.linux-amd64/bin/go
+- Validation: test -v ./handlers ./telemetry PASS; test -race ./... PASS (db 1.601s, handlers 1.446s, services 1.112s, telemetry 1.173s); vet ./... PASS; node --check static/dashboard.js PASS; node --test --test-isolation=none --test-reporter=tap static/dashboard.test.cjs PASS (5/5); DOM ID/reference audit PASS (25 IDs); staged diff --check PASS.
+- Initial network-server streaming tests failed due sandbox TCP socket denial. Replaced with in-memory HTTP response pipes; streaming framing/audience/heartbeat/cancellation verified without sockets. No denied permission bypass attempted.
+- Coverage: SQLite profile/gates/privacy/ties/paid access; API auth/config/database failures; embedded assets/CSP/path isolation; activity bridge safe content/student audience; bounded SSE backpressure and concurrent lifecycle; frontend safe text rendering, failed submission retention, server-confirmed XP, locked nodes, session expiry, initial-fetch recovery, reconnect/bfcache and HTTPS Paystack URL validation.
+- PostgreSQL test SKIPPED locally because MEUSEAI_TEST_POSTGRES_DSN unavailable; suite supports isolated schema in CI. Real-browser layout/accessibility review NOT RUN (runtime unavailable and local TCP denied); Node tests exercise UI logic, not browser layout. No CI/deployment/field evidence claimed.
+- Remaining gates/Planner: publish branch, PostgreSQL CI at exact SHA, browser review and merge. Server task provides trusted session adapter, runs Dashboard.RunTelemetry once with shutdown context, closes Hub on shutdown and registers curriculum/payment routes. Map authenticated session into curriculum handler; never trust client-supplied student headers. Provisioning delivery remains payment integration work. Root AGENTS.md bootstrap is outside this task scope.
+- Intended release: supported validation-backed --complete, followed by synchronization of Task 5 release under user's explicit Task 5 repair authorization. Task 6 remains dependent on integration of Tasks 3/4/5; no worker push/PR/merge.
+
+## task-telemetry-dashboard — codex-dashboard-20261028-f9a8
+- Session: Codex-worker-20261028-df9f6e28
+- State: COMPLETE
+- Validation: /tmp/meuseai-validate-dashboard
+- Evidence: ok  	github.com/eeyung1/meuseAI/db	(cached); ok  	github.com/eeyung1/meuseAI/handlers	(cached); ok  	github.com/eeyung1/meuseAI/services	(cached); ?   	github.com/eeyung1/meuseAI/static	[no test files]; ok  	github.com/eeyung1/meuseAI/telemetry	(cached); TAP version 13; # Subtest: renders server state safely, selects locked modules and reconnects; ok 1 - renders server state safely, selects locked modules and reconnects;   ---;   duration_ms: 74.75295;   type: 'test';   ...; # Subtest: submits selected day and applies XP only after confirmed snapshot; ok 2 - submits selected day and applies XP only after confirmed snapshot;   ---;   duration_ms: 15.139342;   type: 'test';   ...; # Subtest: failed submissions retain prompt and do not invent progress; ok 3 - failed submissions retain prompt and do not invent progress;   ---;   duration_ms: 7.18473;   type: 'test';   ...; # Subtest: expired session never starts SSE, and failed initial fetch can recover; ok 4 - expired session never starts SSE, and failed initial fetch can recover;   ---;   duration_ms: 19.433024;   type: 'test';   ...; # Subtest: checkout accepts only Paystack HTTPS destination; ok 5 - checkout accepts only Paystack HTTPS destination;   ---;   duration_ms: 31.48699;   type: 'test';   ...; 1..5; # tests 5; # suites 0; # pass 5; # fail 0; # cancelled 0; # skipped 0; # todo 0; # duration_ms 187.813871
+- Recorded UTC: 2026-10-28T21:00:39Z
+
+- 2026-10-28T21:00:51+00:00 — Task 5 final audit: validation-backed --complete returned COMPLETE; Go race suite and 5/5 Node tests PASS. Authorized release repair synchronized generation 16, session COMPLETE, claim removed. Clean commit 74812831b8ab1118fe0a73f3074665d0e5979194; no remote changes. No eligible Unclaimed tasks: Task 6 dependency integration remains with Planner, Task 3 remains owned.
+
+
+## 2026-10-28T21:05:00+00:00 — Tasks 3, 4, 5 continuous integration & publication summary (Planner)
+- **PR #3 (Task 4: task-paystack-monetization)**:
+  - Branch: `agent/task-paystack-monetization`
+  - Merge SHA: `14fe71cd803e15de4c5fc18b582860007cb3f14f`
+  - GitHub Actions CI: SUCCESS (PostgreSQL 16 container, SQLite, race detector, go vet)
+  - Features: Paystack checkout initialization (Tier 1 ₦5,000 / 500,000 kobo), raw-body HMAC-SHA512 webhook signature verification, atomic payment recording, `funnel_tier = 'tier_1_active'` upgrade, and Lovable provisioning audit log.
+  - Claim: `claim-21e5a749cef86ffb1b718a5f2746e91b` released.
+
+- **PR #4 (Task 3: task-drip-engine)**:
+  - Branch: `agent/task-drip-engine`
+  - Merge SHA: `558ed5f177606703b71d9369421d3cd279305587`
+  - GitHub Actions CI: SUCCESS (PostgreSQL 16 container, SQLite, race detector, go vet)
+  - Features: Curriculum completion endpoint (`POST /api/v1/curriculum/complete`), 250 XP reward, daily exercise progression gates (Day 1 -> Day 2 -> Day 3 -> Day 4 -> conversion_gate), background drip engine (`engine/drip.go`) evaluating daily deliveries and 48h nudges, and automatic transition of stalled students to `free_tier_lapsed`.
+  - Claim: `opencode-drip-20261028-4f63c2` released.
+
+- **PR #5 (Task 5: task-telemetry-dashboard)**:
+  - Branch: `agent/task-telemetry-dashboard`
+  - Merge SHA: `73304bddfe36f85ff17600df9ec846dc204c79a1`
+  - GitHub Actions CI: SUCCESS (PostgreSQL 16 container, SQLite, race detector, go vet)
+  - Features: Authenticated student dashboard snapshot API (`GET /api/v1/dashboard/me`), bounded student-isolated Server-Sent Events hub (`GET /api/v1/telemetry/stream`), embedded Dark Blue & Electric Yellow UI assets (`static/dashboard.html`, `dashboard.css`, `dashboard.js`), circular progression hub, and Node VM interaction test suite.
+  - Claim: `codex-dashboard-20261028-f9a8` released.
+
+- **All Upstream Dependencies Merged**:
+  - Tasks 1, 2, 3, 4, and 5 are merged into `main` (`73304bd`).
+  - Task 6 (`task-server-bootstrap`) is now actively running under session `Codex-worker-20261028-cbb00424` and claim `codex-server-20261028-8c2f`.
