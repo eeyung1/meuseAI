@@ -42,3 +42,7 @@
 | Token | Agent/session ID | Feature | Scope | Claimed UTC |
 | --- | --- | --- | --- | --- |
 | codex-intake-20261028-2114 | Codex-worker-20261028-a9ad324b | task-student-intake | handlers/intake.go,handlers/intake_test.go,services/mailer.go,services/mailer_test.go | 2026-10-28T20:26:10Z |
+| OpenCode-worker-20261028-bc9243e0 | backend | BLOCKED | 2026-10-28T20:30:17Z | task-drip-engine | agent/task-drip-engine @ /home/recoding/Projects/meuseAI/.agent-worktrees/task-drip-engine | opencode-drip-20261028-4f63c2 |
+| opencode-drip-20261028-4f63c2 | OpenCode-worker-20261028-bc9243e0 | task-drip-engine | engine/drip.go,engine/drip_test.go,handlers/curriculum.go,handlers/curriculum_test.go | 2026-10-28T20:29:43Z |
+
+- 2026-10-28T20:30:29Z — OpenCode-worker-20261028-bc9243e0: ACTIVATION BLOCKER: --start reported WORKING and created the drip-engine worktree, but structured generation 9 records ACTIVE with no claim; operational projection now BLOCKED while preserving token opencode-drip-20261028-4f63c2. No product edits. ORCHESTRATOR must reconcile ownership before implementation.
