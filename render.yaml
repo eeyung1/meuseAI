@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: meuseai
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: MEUSEAI_DB_DRIVER
+        value: postgres
+      - key: MEUSEAI_DB_DSN
+        sync: false
+      - key: MEUSEAI_SESSION_KEY
+        generateValue: true
+      - key: MEUSEAI_ADMIN_TOKEN
+        generateValue: true
+      - key: MEUSEAI_DRY_RUN
+        value: "true"
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MEUSEAI_EMAIL_FROM
+        value: onboarding@meuseai.com

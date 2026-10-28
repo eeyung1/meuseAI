@@ -41,7 +41,30 @@ func loadEnvFile(path string) {
 }
 
 func ConfigFromEnv() (Config, error) {
-	config := Config{Address: os.Getenv("MEUSEAI_ADDR"), PublicURL: os.Getenv("MEUSEAI_PUBLIC_URL"), SessionKey: []byte(os.Getenv("MEUSEAI_SESSION_KEY")), AdminToken: os.Getenv("MEUSEAI_ADMIN_TOKEN"), PaystackSecret: os.Getenv("PAYSTACK_SECRET_KEY"), LovableURL: os.Getenv("MEUSEAI_LOVABLE_URL"), OnboardingURL: os.Getenv("MEUSEAI_ONBOARDING_URL"), Logger: log.New(os.Stdout, "meuseai ", log.LstdFlags), Database: db.Config{Driver: os.Getenv("MEUSEAI_DB_DRIVER"), DSN: os.Getenv("MEUSEAI_DB_DSN")}}
+	addr := os.Getenv("MEUSEAI_ADDR")
+	if addr == "" {
+		if port := os.Getenv("PORT"); port != "" {
+			addr = "0.0.0.0:" + port
+		}
+	}
+	publicURL := os.Getenv("MEUSEAI_PUBLIC_URL")
+	if publicURL == "" {
+		publicURL = os.Getenv("RENDER_EXTERNAL_URL")
+	}
+	config := Config{
+		Address:        addr,
+		PublicURL:      publicURL,
+		SessionKey:     []byte(os.Getenv("MEUSEAI_SESSION_KEY")),
+		AdminToken:     os.Getenv("MEUSEAI_ADMIN_TOKEN"),
+		PaystackSecret: os.Getenv("PAYSTACK_SECRET_KEY"),
+		LovableURL:     os.Getenv("MEUSEAI_LOVABLE_URL"),
+		OnboardingURL:  os.Getenv("MEUSEAI_ONBOARDING_URL"),
+		Logger:         log.New(os.Stdout, "meuseai ", log.LstdFlags),
+		Database: db.Config{
+			Driver: os.Getenv("MEUSEAI_DB_DRIVER"),
+			DSN:    os.Getenv("MEUSEAI_DB_DSN"),
+		},
+	}
 	if config.Database.Driver == "" {
 		config.Database.Driver = "sqlite"
 	}

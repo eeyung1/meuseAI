@@ -1,0 +1,12 @@
+.git
+.github
+.agent-worktrees
+.env
+.env.*
+*.db
+*.db-*
+bin/
+scratch/
+meuseai_elite_dashboard.html
+automation_blueprint.md
+multi-agent-orchestrator/
