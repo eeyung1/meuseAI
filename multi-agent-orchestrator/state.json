@@ -3,7 +3,7 @@
     "repository_id": "local-git:/home/recoding/Projects/meuseAI#/home/recoding/Projects/meuseAI/.git",
     "protocol": "orchestrator/v1",
     "schema": 4,
-    "generation": 5,
+    "generation": 6,
     "enrollment": "NATIVE",
     "provenance": "Human operator initialized project coordination",
     "enrolled_utc": "2026-10-28T15:11:19Z"
@@ -12,8 +12,8 @@
     "Codex-worker-20261028-fe3cf89d": {
       "id": "Codex-worker-20261028-fe3cf89d",
       "role": "database",
-      "state": "WORKING",
-      "generation": 5
+      "state": "COMPLETE",
+      "generation": 6
     },
     "planner-agent-20261028-73ba1647": {
       "id": "planner-agent-20261028-73ba1647",
@@ -22,15 +22,7 @@
       "generation": 3
     }
   },
-  "claims": {
-    "codex-foundation-20261028": {
-      "token": "codex-foundation-20261028",
-      "session_id": "Codex-worker-20261028-fe3cf89d",
-      "feature": "task-foundation-schema",
-      "scope": "db,schema.sql,schema.sqlite,go.mod,go.sum",
-      "generation": 5
-    }
-  },
+  "claims": {},
   "objectives": {},
   "tasks": {},
   "results": {},
@@ -63,6 +55,13 @@
       "operation": "authorize-recovery",
       "generation": 5,
       "utc": "2026-10-28T15:37:00Z"
+    },
+    {
+      "id": "6-release-claim",
+      "actor": "ORCHESTRATOR",
+      "operation": "release-claim",
+      "generation": 6,
+      "utc": "2026-10-28T15:59:00Z"
     }
   ]
 }

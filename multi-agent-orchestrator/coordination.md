@@ -10,20 +10,19 @@ meuseAI automated student journey and conversion funnel pipeline.
 
 ## Owner Decisions
 - Project coordination enrolled under ORCHESTRATOR native authority.
-- **2026-10-28**: Architecture standardized on **Go 1.24+ (Gin/Fiber) + PostgreSQL + Server-Sent Events (SSE)** for high concurrency across thousands of active learners.
+- **2026-10-28**: Architecture standardized on **Go 1.24+ (Gin/Fiber/net/http) + PostgreSQL + Server-Sent Events (SSE)** for high concurrency across thousands of active learners.
 - **2026-10-28**: Dashboard UI identity standardized on **Dark Blue (`#060B18` / `#0A1229`) and Electric Yellow (`#FFD60A`)** for engaging, high-contrast visual focus.
 - **2026-10-28**: Funnel standardized on completion-gated progression, Paystack ₦5,000 Tier 1 monetization, and manual `tier_2_ready` safeguard for Module 2.
 - **2026-10-28**: MVP task decomposition published to backlog (Tasks 1 through 6). Strict enforcement of `ONE TASK -> ONE OWNER -> ONE GENERATION -> ONE CLAIM -> ONE BRANCH -> ONE ISOLATED WORKTREE -> ONE BOUNDED SCOPE`.
 - **2026-10-28**: Continuous worker pipeline instituted: Workers do NOT push to origin or open PRs. Workers implement, locally validate with Go unit tests, commit without co-author trailers, log `HANDOFF: commit <sha>`, release their claim, and autonomously pick the next unblocked task. Planner / Orchestrator handles branch push, PR creation, CI validation, and merges.
-- **2026-10-28T15:37:00Z — ORCHESTRATOR authorization of claim recovery**: Worker session `Codex-worker-20261028-fe3cf89d` is officially authorized to resume `task-foundation-schema` under claim `codex-foundation-20261028` with full approved scope (`db,schema.sql,schema.sqlite,go.mod,go.sum`). Existing branch `agent/task-foundation-schema` and worktree `/home/recoding/Projects/meuseAI/.agent-worktrees/task-foundation-schema` confirmed valid. Structured `state.json` (generation 5, session state WORKING, structured claim registered) and `agentmeeting.md` reconciled. Worker is unblocked and authorized to begin implementation.
-- **Environment Note for Workers**: Prefix all Go build/test/run commands with `GOTOOLCHAIN=go1.24.10 GOCACHE=/tmp/meuseai-gocache` to use the locally cached toolchain and bypass sandbox network restrictions.
+- **2026-10-28T15:37:00Z — ORCHESTRATOR authorization of claim recovery**: Worker session `Codex-worker-20261028-fe3cf89d` authorized to resume `task-foundation-schema` under claim `codex-foundation-20261028`.
+- **2026-10-28T16:00:00Z — ORCHESTRATOR merge and release of Task 1**: Commit `4cbb747` merged into `main`. Database foundation validated across PostgreSQL and SQLite with race detection and concurrent startup tests. Claim `codex-foundation-20261028` is released and task 1 is marked Done.
+- **2026-10-28T16:00:00Z — Supabase Shared Schema Policy**: meuseAI shares a Supabase PostgreSQL slot with another project. To guarantee complete schema isolation and prevent collision with `public` tables, `db.Config` now includes `Schema: "meuseai"`. The database layer automatically executes `CREATE SCHEMA IF NOT EXISTS meuseai` and appends `search_path=meuseai` to all connection pool instances.
+- **2026-10-28T16:00:00Z — Unblocking Downstream Tasks**: Tasks 2 (`task-student-intake`), 3 (`task-drip-engine`), 4 (`task-paystack-monetization`), and 5 (`task-telemetry-dashboard`) are completely UNBLOCKED and eligible for immediate parallel claiming by worker agents.
 
 ## Blockers and Proposed Decisions
-- **RESOLVED (2026-10-28T15:37:00Z)**: Worker activation blocked due to inconsistent ownership stores. ORCHESTRATOR completed reconciliation across `state.json`, `agentmeeting.md`, and `coordination.md`. Claim `codex-foundation-20261028` active, session WORKING, worktree confirmed.
+- **RESOLVED (2026-10-28T15:37:00Z)**: Worker activation blocked due to inconsistent ownership stores. Reconciled and resumed.
+- **RESOLVED (2026-10-28T16:00:00Z)**: Task 1 handoff processed, merged, validated, and synchronized. Claim released.
 
 ## Automated Actions
 - Task assignment and claim locking managed via `multi-agent-orchestrator`.
-
-## 2026-10-28T15:50:34+00:00 — Foundation handoff ready; final state synchronization required
-
-Commit 4cbb7478b7d9f7ad9957bac6d66e3af3164128ce on agent/task-foundation-schema is locally validated and ready for Planner publication. The documented --complete command returned COMPLETE, appended passing validation evidence, set Markdown session COMPLETE, and removed its Markdown claim. Post-completion audit shows state.json still generation 5, session WORKING, with structured claim codex-foundation-20261028; the controller's legacy completion path does not synchronize structured authority. No manual structured-state edits or ownership transfer attempted. ORCHESTRATOR must record authoritative completion/release and update backlog item 1 from Claimed to the appropriate reviewed/integration state. Worker has stopped writing this feature. Auto-repeat scan found tasks 2–5 depend on task 1 and task 6 depends on 2–5; approved main base still da9ec74 without the database foundation. Next assignment requires the foundation on an approved base and synchronized ownership. Root AGENTS.md remains a documentation-integrator bootstrap item outside the worker claim; verified commands are in resolution.md and db/README.md. No pushes or PRs were performed.

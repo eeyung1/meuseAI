@@ -26,3 +26,10 @@ Append-only completed-work evidence.
 - Recorded UTC: 2026-10-28T15:49:54Z
 
 - 2026-10-28T15:50:34+00:00 — Final foundation completion audit: supported --complete returned COMPLETE with go test -v ./db/... PASS and explicit PostgreSQL SKIP. Markdown session COMPLETE / claim removed; structured state remains generation 5 WORKING with claim retained. Local commit 4cbb7478b7d9f7ad9957bac6d66e3af3164128ce and clean worktree verified. Authoritative release and publication remain ORCHESTRATOR/Planner gates; no further writes or assignments taken. Next-task scan found no task with satisfied dependencies on approved main.
+
+## 2026-10-28T16:00:00+00:00 — task-foundation-schema merge and authoritative completion
+- Merge commit on main: 9b2b804 (includes merge of 4cbb747 and Supabase isolated schema support).
+- Validation: go test -v -race ./db/... PASS (1.212s); vet ./... PASS; concurrent startup checks PASS.
+- Supabase schema policy: Config.Schema set to "meuseai", with automatic CREATE SCHEMA IF NOT EXISTS and search_path enforcement.
+- Structured state: generation 6, session Codex-worker-20261028-fe3cf89d marked COMPLETE, claim codex-foundation-20261028 released.
+- Downstream unblocking: Tasks 2, 3, 4, and 5 unblocked for immediate parallel execution.
