@@ -19,10 +19,14 @@ meuseAI automated student journey and conversion funnel pipeline.
 - **2026-10-28T16:00:00Z — ORCHESTRATOR merge and release of Task 1**: Commit `4cbb747` merged into `main`. Database foundation validated across PostgreSQL and SQLite with race detection and concurrent startup tests. Claim `codex-foundation-20261028` is released and task 1 is marked Done.
 - **2026-10-28T16:00:00Z — Supabase Shared Schema Policy**: meuseAI shares a Supabase PostgreSQL slot with another project. To guarantee complete schema isolation and prevent collision with `public` tables, `db.Config` now includes `Schema: "meuseai"`. The database layer automatically executes `CREATE SCHEMA IF NOT EXISTS meuseai` and appends `search_path=meuseai` to all connection pool instances.
 - **2026-10-28T16:00:00Z — Unblocking Downstream Tasks**: Tasks 2 (`task-student-intake`), 3 (`task-drip-engine`), 4 (`task-paystack-monetization`), and 5 (`task-telemetry-dashboard`) are completely UNBLOCKED and eligible for immediate parallel claiming by worker agents.
+- **2026-10-28T16:16:00Z — Remote PR & CI Deployed**: PR #1 merged into `main` (`4ea23a1`). GitHub Actions CI workflow active and verified green in run #40723843179.
+- **2026-10-28T20:28:00Z — ORCHESTRATOR authorization of claim recovery for Task 2**: Worker session `Codex-worker-20261028-a9ad324b` is officially authorized to implement `task-student-intake` under claim `codex-intake-20261028-2114` with approved bounded scope (`handlers/intake.go`, `handlers/intake_test.go`, `services/mailer.go`, `services/mailer_test.go`). Worktree `/home/recoding/Projects/meuseAI/.agent-worktrees/task-student-intake` and branch `agent/task-student-intake` confirmed valid. Structured `state.json` (generation 8, session WORKING, claim registered) and `agentmeeting.md` reconciled. Worker is unblocked and authorized to proceed.
+- **Environment Note for Workers**: Prefix all Go build/test/run commands with `GOTOOLCHAIN=go1.24.10 GOCACHE=/tmp/meuseai-gocache` to use the locally cached toolchain and bypass sandbox network restrictions.
 
 ## Blockers and Proposed Decisions
-- **RESOLVED (2026-10-28T15:37:00Z)**: Worker activation blocked due to inconsistent ownership stores. Reconciled and resumed.
+- **RESOLVED (2026-10-28T15:37:00Z)**: Worker activation blocked due to inconsistent ownership stores on Task 1. Reconciled and resumed.
 - **RESOLVED (2026-10-28T16:00:00Z)**: Task 1 handoff processed, merged, validated, and synchronized. Claim released.
+- **RESOLVED (2026-10-28T20:28:00Z)**: Worker activation blocked on Task 2 (`task-student-intake`). ORCHESTRATOR completed reconciliation across `state.json`, `agentmeeting.md`, and `coordination.md`. Claim `codex-intake-20261028-2114` active, session WORKING, worktree confirmed.
 
 ## Automated Actions
 - Task assignment and claim locking managed via `multi-agent-orchestrator`.
