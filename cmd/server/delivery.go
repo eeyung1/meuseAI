@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/mail"
 	"strconv"
@@ -18,6 +19,37 @@ import (
 )
 
 type deliveryKey struct{}
+
+// Log only allowlisted metadata. Provider messages can contain recipient data,
+// credentials or message content and must never be logged verbatim.
+func logEmailRejection(provider string, response *http.Response) {
+ var result struct { Code string `json:"code"`; Name string `json:"name"`; Message string `json:"message"` }
+ raw, _ := io.ReadAll(io.LimitReader(response.Body, 64<<10))
+ _ = json.Unmarshal(raw, &result)
+ code := "unknown"
+ for _, candidate := range []string{result.Code, result.Name} {
+  switch candidate {
+  case "unauthorized", "permission_denied", "invalid_parameter", "missing_parameter", "not_enough_credits", "account_under_validation", "duplicate_parameter", "document_not_found", "method_not_allowed", "too_many_requests", "rate_limit_exceeded", "validation_error", "restricted_api_key", "invalid_api_key":
+   code = candidate
+  }
+ }
+ reason := "provider_rejected"
+ message := strings.ToLower(result.Message)
+ switch {
+ case strings.Contains(message, "unrecognized ip") || strings.Contains(message, "unauthorised ip") || strings.Contains(message, "unauthorized ip"):
+  reason = "ip_not_authorized"
+ case strings.Contains(message, "sender") && (strings.Contains(message, "valid") || strings.Contains(message, "authoriz")):
+  reason = "sender_not_authorized"
+ case strings.Contains(message, "credit") || strings.Contains(message, "quota"):
+  reason = "quota_or_credits"
+ case response.StatusCode == http.StatusUnauthorized:
+  reason = "authentication_failed"
+ case response.StatusCode == http.StatusTooManyRequests:
+  reason = "rate_limited"
+ }
+ log.Printf("email_delivery_failed provider=%s status=%d code=%s reason=%s", provider, response.StatusCode, code, reason)
+}
+
 
 // ResendMailer is an optional production adapter; tests can inject Mailer instead.
 type ResendMailer struct {
@@ -63,10 +95,12 @@ func (m *ResendMailer) Send(ctx context.Context, message services.Message) error
 	}
 	response, err := m.client.Do(req)
 	if err != nil {
+		log.Printf("email_delivery_failed provider=resend reason=transport_failure")
 		return errors.New("email provider unavailable")
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		logEmailRejection("resend", response)
 		return errors.New("email provider rejected message")
 	}
 	raw, err := io.ReadAll(io.LimitReader(response.Body, 64<<10))
@@ -74,6 +108,7 @@ func (m *ResendMailer) Send(ctx context.Context, message services.Message) error
 		ID string `json:"id"`
 	}
 	if err != nil || json.Unmarshal(raw, &result) != nil || result.ID == "" {
+		log.Printf("email_delivery_failed provider=resend reason=invalid_response")
 		return errors.New("invalid email provider response")
 	}
 	return nil
@@ -147,10 +182,12 @@ func (m *BrevoMailer) Send(ctx context.Context, message services.Message) error 
 
 	response, err := m.client.Do(req)
 	if err != nil {
+		log.Printf("email_delivery_failed provider=brevo reason=transport_failure")
 		return errors.New("email provider unavailable")
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		logEmailRejection("brevo", response)
 		return errors.New("email provider rejected message")
 	}
 	raw, err := io.ReadAll(io.LimitReader(response.Body, 64<<10))
@@ -158,6 +195,7 @@ func (m *BrevoMailer) Send(ctx context.Context, message services.Message) error 
 		MessageID string `json:"messageId"`
 	}
 	if err != nil || json.Unmarshal(raw, &result) != nil || result.MessageID == "" {
+		log.Printf("email_delivery_failed provider=brevo reason=invalid_response")
 		return errors.New("invalid email provider response")
 	}
 	return nil
