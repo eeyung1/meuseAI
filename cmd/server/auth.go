@@ -159,6 +159,14 @@ func (a *App) loginHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFileFS(w, r, assets.Assets, "landing.html")
 }
 
+func (a *App) shareHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	http.ServeFileFS(w, r, assets.Assets, "share.html")
+}
+
 func (a *App) sendMagicLink(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(405)

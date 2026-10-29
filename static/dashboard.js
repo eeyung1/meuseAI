@@ -64,6 +64,71 @@
     if (!snapshot.leaderboard.length) { const li = document.createElement('li'); li.textContent = 'Your cohort is getting started.'; $('leaderboard').append(li); }
     renderModule();
   }
+  const recipes = {
+    day_1: {
+      tag: 'Lens & Perspective',
+      guide: 'Formula: [Subject] + [Setting] + [Camera/Lens] + [Lighting Mood] + [Aspect Ratio]',
+      presets: [
+        { label: 'Cinematic Portrait (85mm)', text: 'Cinematic photograph of a cybernetic warrior wearing weathered brass armor, standing in a rain-slicked neon street, 85mm portrait lens, f/1.4 shallow depth of field, neon rim lighting reflecting off wet asphalt, 8k resolution, ultra-detailed --ar 16:9' },
+        { label: 'Atmospheric Wide (24mm)', text: 'Atmospheric environmental wide shot of an Afrofuturist observatory on a misty cliffside at dawn, 24mm wide angle lens, soft volumetric golden hour beams, cinematic composition --ar 16:9' },
+        { label: 'Dynamic Action Shot', text: 'Dynamic street-level action photograph of a high-speed hovercraft racing through a bustling night market, low angle camera perspective, motion blur in background, sharp subject clarity, cinematic --ar 21:9' }
+      ]
+    },
+    day_2: {
+      tag: 'Lighting Physics',
+      guide: 'Formula: Macro/Subject + Volumetric Lighting + Caustics/Refraction + Material Textures',
+      presets: [
+        { label: 'Crystal & Water Caustics', text: 'Macro close-up photography of a translucent crystal orchid with morning dew drops, dramatic volumetric golden-hour backlighting, optical caustic refraction through water droplets, subsurface scattering, extreme tactile texture, dark moody bokeh background --ar 1:1' },
+        { label: 'Obsidian & Molten Gold', text: 'Sculptural macro shot of cracked black obsidian stone infused with glowing veins of molten liquid gold, intense specular highlights, volumetric smoke wisps, high contrast dramatic studio lighting --ar 16:9' },
+        { label: 'Neon Bioluminescence', text: 'Deep sea bioluminescent creature glowing with cyan and violet light pulses, soft volumetric underwater rays, ultra-fine microscopic surface textures, pitch-black ocean backdrop --ar 1:1' }
+      ]
+    },
+    day_3: {
+      tag: 'Character Anchor',
+      guide: 'Formula: Character Archetype + Unique Visual Anchor + Wardrobe Lock + Perspective Set',
+      presets: [
+        { label: 'Cyber Pilot with Gold Visor', text: 'Character concept portrait of Ace Pilot Maya, signature visual anchor: glowing hexagonal gold flight visor covering left eye, midnight-blue flight suit with orange warning stripes, studio key lighting, character consistency sheet --ar 16:9' },
+        { label: 'Nomadic Alchemist', text: 'Character portrait of an elderly desert alchemist, signature visual anchor: intricate silver spiral earrings and emerald-embroidered silk scarf, weathered sun-drenched facial textures, cinematic 50mm film still --ar 16:9' },
+        { label: 'Architect of Tomorrow', text: 'Studio editorial portrait of an avant-garde architect, signature visual anchor: asymmetric geometric titanium eyeglasses, structured charcoal wool coat, clean minimalist white studio lighting --ar 16:9' }
+      ]
+    },
+    day_4: {
+      tag: 'Capstone Showcase',
+      guide: 'Formula: Hero Commercial Concept + Studio Lighting + Color Grading + Landing Page Ready',
+      presets: [
+        { label: 'Autonomous AI Neural Audio', text: 'Commercial hero visual of an autonomous AI neural headset made of matte titanium and frosted sea glass, floating above a minimalist black basalt pedestal, soft commercial studio diffusion, high-end editorial lighting, Hasselblad H6D clarity, landing page hero banner --ar 16:9' },
+        { label: 'Next-Gen Smart Footwear', text: 'Commercial editorial photograph of a futuristic aerodynamic sneaker made with bioluminescent mesh, dynamic floating angle, commercial advertising studio lighting, clean luxury gradient background --ar 16:9' },
+        { label: 'Eco-Living Smart Pod', text: 'Architectural hero exterior of a sustainable solar glass residential pod nestled in Scandinavian pine woods, dusk lighting, warm interior glow, architectural digest quality --ar 16:9' }
+      ]
+    }
+  };
+
+  let activeCelebrationDay = null;
+  function updateSocialShare(dayNum) {
+    if (!dayNum || !$('social-celebration')) return;
+    activeCelebrationDay = dayNum;
+    const studentName = snapshot?.full_name || 'A builder';
+    const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : 'https://meuseai.onrender.com';
+    const shareUrl = `${origin}/share?day=${dayNum}&student=${encodeURIComponent(studentName)}`;
+    const quote = `I just finished Day ${dayNum} of the meuseAI Image Accelerator using Google Gemini! 🚀 Created a custom visual exploring lighting and prompt direction. Join the free 4-day sprint: ${origin}`;
+    const tweet = `Day ${dayNum} with @meuseAI & Google Gemini complete! 🎨 Engineered a custom visual exploring prompt direction. Start the free 4-day sprint:`;
+
+    const fbBtn = $('share-facebook-btn');
+    if (fbBtn) fbBtn.href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(quote)}`;
+
+    const twBtn = $('share-twitter-btn');
+    if (twBtn) twBtn.href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweet)}&url=${encodeURIComponent(shareUrl)}&hashtags=meuseAI,GeminiAI,AIArt`;
+
+    const liBtn = $('share-linkedin-btn');
+    if (liBtn) liBtn.href = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
+
+    const waBtn = $('share-whatsapp-btn');
+    if (waBtn) waBtn.href = `https://api.whatsapp.com/send?text=${encodeURIComponent(quote + ' ' + shareUrl)}`;
+
+    if ($('celebration-title')) $('celebration-title').textContent = `Day ${dayNum} Conquered! +250 XP Awarded`;
+    $('social-celebration').hidden = false;
+  }
+
   function renderModule() {
     if (!snapshot) return;
     const module = snapshot.modules.find(item => item.id === selected);
@@ -76,6 +141,45 @@
     $('checkout-button').hidden = module.id !== 'tier_1' || module.state !== 'available';
     $('module-help').textContent = module.state === 'locked' ? module.prerequisite : module.state === 'completed' ? 'Well done. Your progress has been saved.' : module.state === 'unlocked' ? 'Your Tier 1 access is active.' : 'Take your time. Your progress will be saved when the server confirms it.';
     $('submit-button').disabled = busy || stopped; $('checkout-button').disabled = busy || stopped;
+
+    // Gemini Studio rendering
+    const studio = $('gemini-studio');
+    if (studio) {
+      if (module.id.startsWith('day_') && module.state === 'available' && recipes[module.id]) {
+        const recipe = recipes[module.id];
+        if ($('studio-recipe-tag')) $('studio-recipe-tag').textContent = recipe.tag;
+        if ($('studio-guide')) $('studio-guide').textContent = recipe.guide;
+        const chipsContainer = $('studio-chips');
+        if (chipsContainer) {
+          chipsContainer.replaceChildren();
+          recipe.presets.forEach(preset => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'chip-btn';
+            btn.textContent = preset.label;
+            btn.addEventListener('click', () => {
+              if ($('gemini-prompt')) $('gemini-prompt').value = preset.text;
+            });
+            chipsContainer.append(btn);
+          });
+        }
+        if ($('gemini-prompt') && !$('gemini-prompt').value) {
+          $('gemini-prompt').value = recipe.presets[0].text;
+        }
+        studio.hidden = false;
+      } else {
+        studio.hidden = true;
+      }
+    }
+
+    // Social share rendering for completed module
+    if ($('social-celebration')) {
+      if (module.id.startsWith('day_') && module.state === 'completed') {
+        updateSocialShare(Number(module.id.slice(4)));
+      } else if (!activeCelebrationDay) {
+        $('social-celebration').hidden = true;
+      }
+    }
   }
   document.querySelectorAll('[data-module]').forEach(button => button.addEventListener('click', () => {
     if (busy || selected === button.dataset.module) return;
@@ -88,10 +192,44 @@
     if (!module || module.state !== 'available' || !submission) return;
     busy = true; renderModule();
     try {
-      await request('/api/v1/curriculum/complete', { method: 'POST', body: JSON.stringify({ day: Number(module.id.slice(4)), submission }) });
+      const dayNum = Number(module.id.slice(4));
+      await request('/api/v1/curriculum/complete', { method: 'POST', body: JSON.stringify({ day: dayNum, submission }) });
       $('submission').value = ''; selected = null; await refresh();
+      updateSocialShare(dayNum);
     } catch (error) { notice(error.message); }
     finally { busy = false; renderModule(); }
+  });
+
+  $('btn-open-gemini')?.addEventListener('click', () => {
+    const prompt = $('gemini-prompt')?.value || '';
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(prompt).catch(() => {});
+    }
+    if (typeof window !== 'undefined' && window.open) {
+      window.open('https://gemini.google.com/app', '_blank', 'noopener,noreferrer');
+    }
+    const note = $('studio-copied-note');
+    if (note) { note.hidden = false; setTimeout(() => { note.hidden = true; }, 4000); }
+  });
+
+  $('btn-use-prompt')?.addEventListener('click', () => {
+    const prompt = $('gemini-prompt')?.value || '';
+    if (prompt && $('submission')) {
+      $('submission').value = prompt;
+      $('submission').focus();
+    }
+  });
+
+  $('btn-copy-share')?.addEventListener('click', () => {
+    const studentName = snapshot?.full_name || 'A builder';
+    const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : 'https://meuseai.onrender.com';
+    const day = activeCelebrationDay || 1;
+    const text = `Day ${day} with @meuseAI & Google Gemini complete! 🎨 Engineered a custom visual exploring lighting and prompt direction. Check out the free 4-day sprint: ${origin}/share?day=${day}&student=${encodeURIComponent(studentName)}`;
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => {});
+    }
+    const note = $('share-copied-note');
+    if (note) { note.hidden = false; setTimeout(() => { note.hidden = true; }, 4000); }
   });
   $('checkout-button').addEventListener('click', async () => {
     if (busy) return;

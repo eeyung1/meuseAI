@@ -138,6 +138,7 @@ func New(ctx context.Context, config Config) (*App, error) {
 	mux.HandleFunc("GET /{$}", a.rootHandler)
 	mux.HandleFunc("GET /signup", a.rootHandler)
 	mux.HandleFunc("GET /login", a.loginHandler)
+	mux.HandleFunc("GET /share", a.shareHandler)
 	mux.HandleFunc("POST /api/v1/students/magic-link", a.sendMagicLink)
 	mux.HandleFunc("GET /api/v1/students/magic-login", a.magicLogin)
 	mux.HandleFunc("POST /api/v1/students/logout", a.logout)
