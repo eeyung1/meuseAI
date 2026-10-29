@@ -1,5 +1,7 @@
 # Showcase production review — stage 1
 
+The user approved this proposed prompt set on 2026-10-29. Image generation and visual approval remain pending.
+
 These are newly proposed prompts because the previously described twelve showcase entries were absent from main. They are not recovered verbatim source content. No images have been generated. `published` remains false until visual review, terms review and asset checks are complete.
 
 ## Reviewable production sequence
@@ -141,3 +143,33 @@ The workflow for each stage is branch → push → passing CI → merge. Commit 
 ## Follow-up product scope
 
 Private student uploads (My Creations) and the consent-based public student wall remain separate work. This stage creates only curated course-example infrastructure. Tier 1 copy focuses on turning a course image into a landing page and discloses that external tools may have separate charges; it makes no unverified market-price claims.
+
+## Production runner
+
+The runner is separate from the student web application. It uses the documented Gemini `generateContent` REST endpoint, which Google continues to support. The model is an explicit argument so availability and billing can be reviewed before a call. Official references checked during preparation:
+
+- https://ai.google.dev/gemini-api/docs/generate-content/image-generation
+- https://ai.google.dev/gemini-api/docs/interactions-overview
+- https://ai.google.dev/gemini-api/terms
+
+Set `GEMINI_API_KEY` securely in your production shell or secret manager. Do not paste it into chat, put it in commands containing a literal key, commit it, or add it to browser code. The runner can also use `GOOGLE_API_KEY`. A key saved only in Render's runtime environment is not automatically available to a local coding environment.
+
+From the repository root, in an isolated Python environment:
+
+```sh
+python3 -m pip install -r scripts/requirements-showcase.txt
+python3 scripts/showcase_production.py plan
+python3 scripts/showcase_production.py generate --id day1-1 --model YOUR_SUPPORTED_IMAGE_MODEL
+```
+
+Only one API attempt occurs per command. There is no batch loop or automatic retry. Missing credentials stop before any API call. The runner sends the approved prompt unchanged, requests 4:3, and supplies checksum-verified approved references as separate image inputs. Failed attempts are recorded without provider messages or secrets.
+
+Inspect the JPEG printed by the command. Verify prompt fidelity, visual appeal, the relevant teaching point, unwanted text/logos/artifacts, and composition on mobile. Inspect any padding from proportional resizing. Then select that exact attempt:
+
+```sh
+python3 scripts/showcase_production.py approve --id day1-1 --attempt 1 --note "Describe your actual visual review findings"
+```
+
+Candidates live in ignored `.showcase-production/`; only explicitly selected images are copied to `static/assets/showcase/`. Approval records the checksum, model/version, selected attempt and visual-review note, but does not publish the gallery. Approve required reference images before generating dependent examples. The runner refuses silent replacement of approved images and refuses review if the prompt, candidate or references changed after generation.
+
+The tests use synthetic fixtures and mocked API responses. They verify request structure, reference checks, review gates, compression and credential handling. They do not establish that a paid live API call succeeded. No real Gemini image was produced during runner preparation because credentials were unavailable in the execution environment.
