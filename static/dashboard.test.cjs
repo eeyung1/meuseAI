@@ -264,10 +264,18 @@ test('owned tracks expose guides and cannot be selected for repurchase',async()=
 });
 
 
-test('Gemini uses native same-tab navigation and saves the current prompt first',async()=>{
+test('Gemini offers native new-tab and same-tab navigation while saving the prompt',async()=>{
  const html=fs.readFileSync(__dirname+'/dashboard.html','utf8');
- assert.match(html,/<a id="btn-open-gemini"[^>]*href="https:\/\/gemini.google.com\/app"[^>]*target="_self"/);
+ assert.match(html,/<a id="btn-open-gemini"[^>]*href="https:\/\/gemini.google.com\/"[^>]*target="_blank"/);
+ assert.match(html,/<a id="gemini-same-tab"[^>]*href="https:\/\/gemini.google.com\/"[^>]*target="_self"/);
  const source=fs.readFileSync(__dirname+'/dashboard.js','utf8');assert.ok(!source.includes("window.open('https://gemini.google.com"));
  const h=harness(()=>ok(profile()));await settle();h.element('gemini-prompt').value='My phone prompt';
  h.element('btn-open-gemini').listeners.click();h.nodes[0].listeners.click();h.nodes[1].listeners.click();assert.equal(h.element('gemini-prompt').value,'My phone prompt');
+});
+
+test('Gemini link copy works with a manual fallback and leaves the prompt unchanged',async()=>{
+ const h=harness(()=>ok(profile()));await settle();h.element('gemini-prompt').value='My creative prompt';
+ let copied;h.context.navigator.clipboard.writeText=async value=>{copied=value;};
+ await h.element('copy-gemini-link').listeners.click();assert.equal(copied,'https://gemini.google.com/');assert.match(h.element('gemini-launch-status').textContent,/copy your prompt again/);assert.equal(h.element('gemini-prompt').value,'My creative prompt');
+ h.context.navigator.clipboard.writeText=async()=>{throw Error('blocked');};await h.element('copy-gemini-link').listeners.click();assert.equal(h.element('gemini-web-address').selected,true);assert.match(h.element('gemini-launch-status').textContent,/manually/);
 });
