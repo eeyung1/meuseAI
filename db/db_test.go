@@ -164,7 +164,7 @@ func testSchemaAndCRUD(t *testing.T, db *DB) {
 		t.Fatal(err)
 	}
 	var count int
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil || count != 4 {
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil || count != 5 {
 		t.Fatalf("migration count=%d err=%v", count, err)
 	}
 	// Payments retain their student reference until explicitly removed.
@@ -275,7 +275,8 @@ func TestMigrationAppliesPendingVersion(t *testing.T) {
 		{2, sqliteSchemaV2},
 		{3, sqliteSchemaV3},
 		{4, sqliteSchemaV4},
-		{5, "ALTER TABLE students ADD COLUMN timezone TEXT NOT NULL DEFAULT 'UTC';"},
+		{5, sqliteSchemaV5},
+		{6, "ALTER TABLE students ADD COLUMN timezone TEXT NOT NULL DEFAULT 'UTC';"},
 	}
 	for i := 0; i < 2; i++ {
 		if err := db.migrate(context.Background(), migrations); err != nil {
@@ -287,7 +288,7 @@ func TestMigrationAppliesPendingVersion(t *testing.T) {
 		t.Fatalf("pending migration failed to preserve and extend data: %q %v", zone, err)
 	}
 	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil || count != 5 {
+	if err := db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil || count != 6 {
 		t.Fatalf("migration history duplicated or missing: %d %v", count, err)
 	}
 }
@@ -320,7 +321,7 @@ func TestMigrationIntegrityAndRollback(t *testing.T) {
 			t.Fatal("invalid migration succeeded")
 		}
 		var count int
-		if err := db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil || count != 4 {
+		if err := db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil || count != 5 {
 			t.Fatalf("failed migration recorded: %d %v", count, err)
 		}
 		if _, err := db.Exec("SELECT * FROM rollback_probe"); err == nil {
@@ -367,5 +368,32 @@ func TestPostgresSchemaHelpers(t *testing.T) {
 	kvDSN := withPostgresSearchPath("user=postgres password=secret dbname=postgres", "meuseai")
 	if !strings.Contains(kvDSN, "search_path=meuseai") {
 		t.Fatalf("expected search_path in key-value DSN, got %s", kvDSN)
+	}
+}
+
+func TestTrackMigrationPreservesLegacyPurchases(t *testing.T) {
+	raw, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer raw.Close()
+	raw.SetMaxOpenConns(1)
+	database := &DB{DB: raw, Dialect: SQLite}
+	if err = database.migrate(context.Background(), []migration{{1, sqliteSchema}, {2, sqliteSchemaV2}, {3, sqliteSchemaV3}, {4, sqliteSchemaV4}}); err != nil {
+		t.Fatal(err)
+	}
+	insertStudent(t, database, "legacy", "legacy@example.test")
+	execSQL(t, database, "UPDATE students SET funnel_tier='tier_1_active' WHERE id='legacy'")
+	execSQL(t, database, "INSERT INTO payments(reference,student_id,amount_kobo,currency,tier_unlocked,status) VALUES('old-pending','legacy',500000,'NGN','tier_1','pending')")
+	if err = database.Migrate(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	var landing, video bool
+	var tracks string
+	if err = database.QueryRow("SELECT tier1_landing,tier1_video FROM students WHERE id='legacy'").Scan(&landing, &video); err != nil || !landing || video {
+		t.Fatal("legacy access not preserved", err)
+	}
+	if err = database.QueryRow("SELECT tracks FROM payments WHERE reference='old-pending'").Scan(&tracks); err != nil || tracks != "landing_pages" {
+		t.Fatal("legacy pending checkout changed", err)
 	}
 }

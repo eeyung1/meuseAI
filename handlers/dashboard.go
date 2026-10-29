@@ -32,6 +32,7 @@ func NewDashboard(database *db.DB, hub *telemetry.Hub, identity DashboardIdentit
 }
 func (d *Dashboard) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/dashboard/me", d.Me)
+	mux.HandleFunc("GET /api/v1/tier-1/{track}", d.Track)
 	mux.HandleFunc("GET /api/v1/telemetry/stream", d.Stream)
 	mux.HandleFunc("GET /dashboard", d.Page)
 
@@ -77,6 +78,8 @@ type DashboardShare struct {
 	XPAwarded int    `json:"xp_awarded"`
 }
 type DashboardSnapshot struct {
+	Tier1Landing    bool                `json:"tier1_landing"`
+	Tier1Video      bool                `json:"tier1_video"`
 	StudentID       string              `json:"student_id"`
 	Name            string              `json:"full_name"`
 	XP              int                 `json:"xp"`
@@ -153,6 +156,9 @@ func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot,
 	var unsubscribed sql.NullTime
 	err = tx.QueryRowContext(ctx, "SELECT full_name,xp,streak_days,current_stage,funnel_tier,engagement_status,email_verified,tier_2_ready,unsubscribed_at FROM students WHERE id=$1", id).Scan(&result.Name, &result.XP, &result.Streak, &result.Stage, &result.Funnel, &result.Engagement, &result.Verified, &result.Tier2Ready, &unsubscribed)
 	if err != nil {
+		return result, err
+	}
+	if err = tx.QueryRowContext(ctx, "SELECT tier1_landing,tier1_video FROM students WHERE id=$1", id).Scan(&result.Tier1Landing, &result.Tier1Video); err != nil {
 		return result, err
 	}
 	result.Unsubscribed = unsubscribed.Valid
@@ -237,14 +243,8 @@ func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot,
 	baseNaira := 5000
 	result.Tier1PriceNaira = baseNaira - (baseNaira * discountPercent / 100)
 
-	tierDesc := "Turn an image you created this week into a landing page for your business or project. Tier 1 access: ₦5,000. External tools may have separate charges."
-	if discountPercent > 0 {
-		tierDesc = fmt.Sprintf("Turn a course image into a landing page for your business or project. Tier 1: ₦%d (%d%% course discount from ₦5,000). External tools may have separate charges.", result.Tier1PriceNaira, discountPercent)
-	} else {
-		xpNeeded := 1000 - result.XP
-		tierDesc = fmt.Sprintf("Turn a course image into a landing page for your business or project. Tier 1: ₦5,000; earn %d more XP for 10%% off. External tools may have separate charges.", xpNeeded)
-	}
-	result.Modules = append(result.Modules, DashboardModule{ID: "tier_1", Title: "Lovable landing pages", Description: tierDesc, State: tierState, Prerequisite: "Complete all four days"})
+	tierDesc := fmt.Sprintf("Choose Lovable landing pages or AI video generation with CapCut. Each track is ₦%d; both are ₦%d. Base price: ₦5,000 per track. External tool costs are separate.", result.Tier1PriceNaira, result.Tier1PriceNaira*2)
+	result.Modules = append(result.Modules, DashboardModule{ID: "tier_1", Title: "Tier 1 · Choose your learning tracks", Description: tierDesc, State: tierState, Prerequisite: "Complete all four days"})
 	if result.Verified && !result.Unsubscribed {
 		if err = tx.QueryRowContext(ctx, "SELECT COUNT(*)+1 FROM students WHERE email_verified=TRUE AND unsubscribed_at IS NULL AND xp>$1", result.XP).Scan(&result.Rank); err != nil {
 			return result, err

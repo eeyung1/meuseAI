@@ -78,7 +78,8 @@ func (p *Payment) Checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
-		Tier string `json:"tier"`
+		Tier   string   `json:"tier"`
+		Tracks []string `json:"tracks"`
 	}
 	if paymentDecode(w, r, &input) != nil {
 		paymentError(w, 400, "invalid checkout payload")
@@ -90,6 +91,18 @@ func (p *Payment) Checkout(w http.ResponseWriter, r *http.Request) {
 	amount, err := services.TierAmount(input.Tier)
 	if err != nil {
 		paymentError(w, 400, "invalid tier")
+		return
+	}
+	tracks := "landing_pages"
+	if input.Tier == "tier_1" {
+		tracks, err = services.CanonicalTracks(input.Tracks)
+		if err != nil {
+			paymentError(w, 400, "select landing_pages, video, or both without duplicates")
+			return
+		}
+		amount *= int64(len(strings.Split(tracks, ",")))
+	} else if len(input.Tracks) > 0 {
+		paymentError(w, 400, "tracks apply only to Tier 1")
 		return
 	}
 	tx, err := p.config.Database.BeginTx(r.Context(), nil)
@@ -124,7 +137,16 @@ func (p *Payment) Checkout(w http.ResponseWriter, r *http.Request) {
 			paymentError(w, 503, "checkout unavailable")
 			return
 		}
-		eligible = eligible && complete && stage == "conversion_gate" && funnel == "free_week"
+		eligible = eligible && complete && stage == "conversion_gate" && (funnel == "free_week" || funnel == "tier_1_active" || funnel == "tier_2_active")
+		var ownsLanding, ownsVideo bool
+		if err = tx.QueryRowContext(r.Context(), "SELECT tier1_landing,tier1_video FROM students WHERE id=$1", id).Scan(&ownsLanding, &ownsVideo); err != nil {
+			paymentError(w, 503, "checkout unavailable")
+			return
+		}
+		if (ownsLanding && strings.Contains(tracks, "landing_pages")) || (ownsVideo && strings.Contains(tracks, "video")) {
+			paymentError(w, 409, "a selected track is already owned; select only a new track")
+			return
+		}
 		if eligible {
 			var studentXP int
 			_ = tx.QueryRowContext(r.Context(), "SELECT xp FROM students WHERE id=$1", id).Scan(&studentXP)
@@ -150,7 +172,7 @@ func (p *Payment) Checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	reference := "meuse-" + hex.EncodeToString(random[:])
-	_, err = tx.ExecContext(r.Context(), "INSERT INTO payments(reference,student_id,amount_kobo,currency,tier_unlocked,status) VALUES($1,$2,$3,$4,$5,'pending')", reference, id, amount, services.PaystackCurrency, input.Tier)
+	_, err = tx.ExecContext(r.Context(), "INSERT INTO payments(reference,student_id,amount_kobo,currency,tier_unlocked,status,tracks) VALUES($1,$2,$3,$4,$5,'pending',$6)", reference, id, amount, services.PaystackCurrency, input.Tier, tracks)
 	if err != nil {
 		paymentError(w, 503, "checkout unavailable")
 		return
@@ -161,7 +183,7 @@ func (p *Payment) Checkout(w http.ResponseWriter, r *http.Request) {
 	}
 	// Persist the expected reference/owner/price before calling the provider so a
 	// fast webhook can be validated. Ambiguous provider failures retain pending.
-	result, err := p.config.Paystack.Initialize(r.Context(), services.CheckoutRequest{Email: email, Amount: amount, Currency: services.PaystackCurrency, Reference: reference, Metadata: map[string]string{"student_id": id, "tier": input.Tier}})
+	result, err := p.config.Paystack.Initialize(r.Context(), services.CheckoutRequest{Email: email, Amount: amount, Currency: services.PaystackCurrency, Reference: reference, Metadata: map[string]string{"student_id": id, "tier": input.Tier, "tracks": tracks}})
 	if err != nil {
 		paymentError(w, 502, "checkout provider unavailable")
 		return
@@ -217,8 +239,8 @@ func (p *Payment) Webhook(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 	var id, tier, status, email string
 	var amount int64
-	var currency string
-	err = tx.QueryRowContext(r.Context(), "SELECT student_id,tier_unlocked,status,amount_kobo,currency FROM payments WHERE reference=$1", data.Reference).Scan(&id, &tier, &status, &amount, &currency)
+	var currency, tracks string
+	err = tx.QueryRowContext(r.Context(), "SELECT student_id,tier_unlocked,status,amount_kobo,currency,tracks FROM payments WHERE reference=$1", data.Reference).Scan(&id, &tier, &status, &amount, &currency, &tracks)
 	if errors.Is(err, sql.ErrNoRows) {
 		paymentError(w, 400, "unknown payment reference")
 		return
@@ -239,7 +261,7 @@ func (p *Payment) Webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	expected, err := services.TierAmount(tier)
-	if err != nil || (tier != "tier_1" && amount != expected) || (tier == "tier_1" && !services.ValidTier1Amount(amount)) || amount != data.Amount || currency != services.PaystackCurrency || data.Currency != currency || !strings.EqualFold(email, data.Customer.Email) {
+	if err != nil || (tier != "tier_1" && amount != expected) || (tier == "tier_1" && !services.ValidTrackAmount(amount, tracks)) || amount != data.Amount || currency != services.PaystackCurrency || data.Currency != currency || !strings.EqualFold(email, data.Customer.Email) {
 		paymentError(w, 400, "payment does not match checkout")
 		return
 	}
@@ -265,19 +287,33 @@ func (p *Payment) Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 	target := "tier_1_active"
 	provisionEvent := "lovable_provisioning_requested"
-	shouldProvision := funnel != "tier_1_active" && funnel != "tier_2_active"
-	if tier == "tier_2" {
+	shouldProvision := false
+	if tier == "tier_1" {
+		var landing, video bool
+		if err = tx.QueryRowContext(r.Context(), "SELECT tier1_landing,tier1_video FROM students WHERE id=$1", id).Scan(&landing, &video); err != nil {
+			paymentError(w, 503, "payment unavailable")
+			return
+		}
+		buyLanding, buyVideo := strings.Contains(tracks, "landing_pages"), strings.Contains(tracks, "video")
+		shouldProvision = (buyLanding && !landing) || (buyVideo && !video)
+		if _, err = tx.ExecContext(r.Context(), "UPDATE students SET tier1_landing=$1,tier1_video=$2 WHERE id=$3", landing || buyLanding, video || buyVideo, id); err != nil {
+			paymentError(w, 503, "payment unavailable")
+			return
+		}
+		if funnel == "tier_2_active" {
+			target = funnel
+		}
+	} else {
 		target = "tier_2_active"
 		provisionEvent = "tier_2_provisioning_requested"
 		shouldProvision = funnel != "tier_2_active"
 	}
 	if shouldProvision {
-		_, err = tx.ExecContext(r.Context(), "UPDATE students SET funnel_tier=$1,payment_status='paid',updated_at=$2 WHERE id=$3", target, now, id)
-		if err != nil {
+		if _, err = tx.ExecContext(r.Context(), "UPDATE students SET funnel_tier=$1,payment_status='paid',updated_at=$2 WHERE id=$3", target, now, id); err != nil {
 			paymentError(w, 503, "payment unavailable")
 			return
 		}
-		if err = paymentAudit(tx, r, id, provisionEvent, map[string]string{"reference": data.Reference, "tier": tier}); err != nil {
+		if err = paymentAudit(tx, r, id, provisionEvent, map[string]string{"reference": data.Reference, "tier": tier, "tracks": tracks}); err != nil {
 			paymentError(w, 503, "payment unavailable")
 			return
 		}

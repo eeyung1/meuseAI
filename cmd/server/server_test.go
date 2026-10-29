@@ -333,3 +333,27 @@ func TestLandingAndMagicLoginJourney(t *testing.T) {
 		t.Fatal("logout did not clear session cookie")
 	}
 }
+
+func TestVideoOnlyProvisioningOmitsLovableAccess(t *testing.T) {
+	config := testConfig()
+	a, err := New(context.Background(), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	if _, err = a.Database.Exec("INSERT INTO students(id,full_name,email,consent_timestamp,unsubscribe_token,funnel_tier,tier1_video) VALUES('video','Video','video@example.com',CURRENT_TIMESTAMP,'video-unsub','tier_1_active',TRUE)"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = a.Database.Exec("INSERT INTO activity_logs(student_id,event_type,details) VALUES('video','lovable_provisioning_requested','{}')"); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		if err = a.ProvisionOnce(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	messages := config.Mailer.(*services.DryRunMailer).Messages()
+	if len(messages) != 1 || !strings.Contains(messages[0].Text, "CapCut") || strings.Contains(messages[0].Text, "Lovable workspace") {
+		t.Fatal("incorrect provisioning", messages)
+	}
+}

@@ -25,8 +25,8 @@ Git and use independent random values for session signing and admin access.
 | `RESEND_API_KEY` | Resend API key for real email delivery. |
 | `MEUSEAI_EMAIL_FROM` | Verified sender, e.g. `meuseAI <hello@example.com>`. |
 | `MEUSEAI_DRY_RUN` | Explicit `true` captures email in process memory rather than delivering. No raw tokens are logged or exposed over HTTP. |
-| `MEUSEAI_LOVABLE_URL` | HTTPS workspace template/access link supplied to confirmed Tier 1 customers. |
-| `MEUSEAI_ONBOARDING_URL` | HTTPS onboarding link supplied with Tier 1 access. |
+| `MEUSEAI_LOVABLE_URL` | HTTPS workspace template/access link supplied only to confirmed landing-page track customers. |
+| `MEUSEAI_ONBOARDING_URL` | HTTPS onboarding link supplied with the Lovable track. |
 
 PostgreSQL environment configuration always uses the isolated `meuseai` schema.
 `server.New` also accepts an explicit DB config, Mailer and HTTP transport for
@@ -92,3 +92,13 @@ The Gemini Prompt Lab button above Today's Learning opens the prompt tools and l
 The landing page explains this sequence. A walkthrough video can be added when the recording is available. Historical migration 4 and its stored data remain in place for database compatibility, but image upload, preview, publication and public image routes are removed.
 
 Each of the four Prompt Lab lessons offers ten themed prompts in both creative and optional reference-photo modes (40 lesson-specific prompts, with reference variants). Themes cover glamour, African elegance, travel, luxury cars, fashion, futuristic cities and galactic scenes. Day 1 compares settings, Day 2 lighting, Day 3 reference consistency and Day 4 sequential edits. Generation remains in external Gemini; the lab gives instructions to send follow-ups individually.
+
+## Tier 1 track selection
+
+Tier 1 offers `landing_pages` (Lovable) and `video` (CapCut). Tuition is ₦5,000 per track or ₦10,000 for both. The existing 1,000-XP/10% discount applies per track: ₦4,500 or ₦9,000. External tool plans, AI credits, hosting upgrades and premium assets are not included. CapCut feature/credit availability depends on account and region; the landing page asks learners to check access before buying.
+
+After the free sprint, dashboard checkboxes calculate the total and checkout posts `{ "tier":"tier_1", "tracks":["video"] }` (or both IDs). Server validation rejects unknown/duplicate/owned selections and computes price. Omitted selections preserve legacy Lovable-only checkout compatibility. Payment records store immutable canonical track selections and amounts. Signed Paystack confirmation grants only those entitlements, is idempotent, and allows a later purchase of the other track. Tier 2 status is preserved during additions.
+
+Migration 5 adds student entitlement flags and stored payment selections, backfilling existing Tier 1/2 customers and pending checkouts as Lovable-only. Earlier migration checksums remain unchanged. Protected `GET /api/v1/tier-1/{track}` serves starter guidance only for purchased tracks. The dashboard provides editable prompts, copy buttons and external tool links. Provisioning email uses purchased entitlements; video-only delivery does not require or include Lovable URLs. The durable event names retain `lovable_provisioning_*` for compatibility even when delivering video onboarding.
+
+Tool selection reviewed 2026-10-29: https://www.capcut.com/tools/ai-video ; https://www.capcut.com/help/how-to-use-credits ; https://www.capcut.com/help/ai-function-not-working-after-login . Guidance does not promise free or unlimited AI generation. Tool access and model choices can be updated independently of purchased learning entitlements.

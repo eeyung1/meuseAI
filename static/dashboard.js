@@ -6,6 +6,8 @@
   let loading = false, refreshAgain = false, stopped = false, busy = false;
   let studioMode = 'selfie'; // 'selfie' | 'scratch'
   let activeCelebrationDay = null;
+  const selectedTracks = new Set(['landing_pages']);
+  let guideRevision = 0;
 
   const labels = { available: 'Available now', completed: 'Completed', locked: 'Complete previous lesson', scheduled: 'Opens later', unlocked: 'Unlocked' };
   function notice(message) { $('notice').hidden = !message; $('notice').textContent = message || ''; }
@@ -35,7 +37,7 @@
     $('student-name').textContent = snapshot.full_name;
     $('greeting').textContent = `Welcome back, ${snapshot.full_name.split(' ')[0] || 'learner'}.`;
     $('avatar').textContent = snapshot.full_name.trim().slice(0, 1).toUpperCase() || '✦';
-    $('student-tier').textContent = ({ free_week: 'Free creative foundations', tier_1_active: 'Tier 1 · Landing pages', tier_2_active: 'Tier 2 · AI coding agents', free_tier_lapsed: 'Free course paused' })[snapshot.funnel_tier] || 'Your learning journey';
+    $('student-tier').textContent = ({ free_week: 'Free creative foundations', tier_1_active: 'Tier 1 · Your purchased tracks', tier_2_active: 'Tier 2 · AI coding agents', free_tier_lapsed: 'Free course paused' })[snapshot.funnel_tier] || 'Your learning journey';
     $('xp').textContent = Number(snapshot.xp).toLocaleString();
     $('streak').textContent = snapshot.streak_days;
     $('rank').textContent = snapshot.rank ? `Your cohort rank: #${snapshot.rank}` : 'Verify your email to join the cohort.';
@@ -61,15 +63,6 @@
       discountBanner.hidden = false;
     }
 
-    if ($('checkout-button')) {
-      const price = snapshot.tier_1_price_naira || 5000;
-      const discount = snapshot.discount_percent || 0;
-      if (discount > 0) {
-        $('checkout-button').textContent = `Unlock Tier 1 · ₦${Number(price).toLocaleString()} (${discount}% XP Discount!)`;
-      } else {
-        $('checkout-button').textContent = 'Continue with Tier 1 · ₦5,000';
-      }
-    }
 
     if (!selected) { selected = snapshot.modules.find(module => ['available','scheduled'].includes(module.state))?.id || snapshot.modules[0]?.id; restoreDraft(); }
     document.querySelectorAll('[data-module]').forEach(button => {
@@ -351,6 +344,51 @@
     $('open-prompt-lab')?.focus();
   });
 
+  function renderTrackOptions(module) {
+    const visible = module.id === 'tier_1' && ['available','unlocked'].includes(module.state);
+    $('tier1-options').hidden = !visible;
+    const price = snapshot.tier_1_price_naira || 5000;
+    const owned = {landing_pages: !!snapshot.tier1_landing, video: !!snapshot.tier1_video};
+    for (const [track, input, label] of [['landing_pages','track-landing','track-landing-price'],['video','track-video','track-video-price']]) {
+      if (owned[track]) selectedTracks.delete(track);
+      $(input).disabled = owned[track] || busy || stopped;
+      $(input).checked = !owned[track] && selectedTracks.has(track);
+      $(label).textContent = owned[track] ? ' · Already unlocked' : ` · ₦${price.toLocaleString()}`;
+    }
+    const count = selectedTracks.size;
+    const discount = snapshot.discount_percent ? ` (${snapshot.discount_percent}% XP Discount!)` : '';
+    $('track-total').textContent = count ? `${count} learning track${count===1?'':'s'} · Total ₦${(price*count).toLocaleString()}${discount}` : 'Select an unowned track to see your total.';
+    $('checkout-button').textContent = `Unlock ${count || 1} Tier 1 track${count>1?'s':''} · ₦${(price*count).toLocaleString()}${discount}`;
+    $('checkout-button').hidden = !visible || (owned.landing_pages && owned.video);
+    $('checkout-button').disabled = !count || busy || stopped;
+    $('open-landing-track').hidden = !visible || !owned.landing_pages;
+    $('open-video-track').hidden = !visible || !owned.video;
+    if (!visible) { guideRevision++; $('paid-track-guide').hidden=true; }
+  }
+  for (const [id,track] of [['track-landing','landing_pages'],['track-video','video']]) $(id)?.addEventListener('change',()=>{
+    if ($(id).checked) selectedTracks.add(track); else selectedTracks.delete(track);
+    renderModule();
+  });
+  async function openTrack(track) {
+    const revision=++guideRevision;
+    try {
+      const guide=await request('/api/v1/tier-1/'+track);
+      if(revision!==guideRevision || selected!=='tier_1')return;
+      const root=$('paid-track-guide');root.replaceChildren();root.hidden=false;
+      const heading=document.createElement('h3');heading.textContent=guide.title;
+      const note=document.createElement('p');note.textContent=guide.cost_note;note.className='muted small';
+      const list=document.createElement('ol');for(const step of guide.steps){const li=document.createElement('li');li.textContent=step;list.append(li);}
+      const prompt=document.createElement('textarea');prompt.value=guide.prompt;prompt.rows=7;prompt.setAttribute('aria-label','Editable starter prompt for '+guide.title);
+      const copy=document.createElement('button');copy.type='button';copy.className='secondary';copy.textContent='Copy starter prompt';
+      const status=document.createElement('p');status.setAttribute('role','status');
+      copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(prompt.value);status.textContent='Copied. Open the tool and paste the prompt.';}catch(_){prompt.focus();prompt.select();status.textContent='Select and copy the prompt manually.';}});
+      const link=document.createElement('a');link.textContent='Open '+guide.title+' tool ↗';link.href=track==='video'?'https://www.capcut.com/tools/ai-video':'https://lovable.dev/';link.target='_blank';link.rel='noopener noreferrer';
+      root.append(heading,note,list,prompt,copy,status,link);
+    }catch(error){notice(error.message);}
+  }
+  $('open-landing-track')?.addEventListener('click',()=>openTrack('landing_pages'));
+  $('open-video-track')?.addEventListener('click',()=>openTrack('video'));
+
   function renderModule() {
     if (!snapshot) return;
     const module = snapshot.modules.find(item => item.id === selected);
@@ -360,9 +398,9 @@
     $('module-prerequisite').textContent = module.prerequisite;
     $('module-xp').textContent = module.xp ? `+${module.xp} XP` : 'Tier 1';
     $('submission-form').hidden = !module.id.startsWith('day_') || module.state !== 'available';
-    $('checkout-button').hidden = module.id !== 'tier_1' || module.state !== 'available';
+    renderTrackOptions(module);
     $('module-help').textContent = module.state === 'locked' ? module.prerequisite : module.state === 'completed' ? 'Well done. Your progress has been saved.' : module.state === 'unlocked' ? 'Your Tier 1 access is active.' : 'Take your time. Your progress will be saved when the server confirms it.';
-    $('submit-button').disabled = busy || stopped; $('checkout-button').disabled = busy || stopped;
+    $('submit-button').disabled = busy || stopped;
 
     const lesson = lessons[module.id];
     const canRead = lesson && ['available','completed'].includes(module.state);
@@ -521,10 +559,10 @@
   });
 
   $('checkout-button').addEventListener('click', async () => {
-    if (busy) return;
+    if (busy || !selectedTracks.size) return;
     busy = true; renderModule();
     try {
-      const result = await request('/api/v1/payments/checkout', { method: 'POST', body: JSON.stringify({ tier: 'tier_1' }) });
+      const result = await request('/api/v1/payments/checkout', { method: 'POST', body: JSON.stringify({ tier: 'tier_1', tracks: [...selectedTracks] }) });
       const target = new URL(result.authorization_url);
       if (target.protocol !== 'https:' || target.host !== 'checkout.paystack.com' || target.username || target.password) throw new Error('Checkout is unavailable. Please try again.');
       location.assign(target.href);

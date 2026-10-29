@@ -23,33 +23,36 @@ type deliveryKey struct{}
 // Log only allowlisted metadata. Provider messages can contain recipient data,
 // credentials or message content and must never be logged verbatim.
 func logEmailRejection(provider string, response *http.Response) {
- var result struct { Code string `json:"code"`; Name string `json:"name"`; Message string `json:"message"` }
- raw, _ := io.ReadAll(io.LimitReader(response.Body, 64<<10))
- _ = json.Unmarshal(raw, &result)
- code := "unknown"
- for _, candidate := range []string{result.Code, result.Name} {
-  switch candidate {
-  case "unauthorized", "permission_denied", "invalid_parameter", "missing_parameter", "not_enough_credits", "account_under_validation", "duplicate_parameter", "document_not_found", "method_not_allowed", "too_many_requests", "rate_limit_exceeded", "validation_error", "restricted_api_key", "invalid_api_key":
-   code = candidate
-  }
- }
- reason := "provider_rejected"
- message := strings.ToLower(result.Message)
- switch {
- case strings.Contains(message, "unrecognized ip") || strings.Contains(message, "unauthorised ip") || strings.Contains(message, "unauthorized ip"):
-  reason = "ip_not_authorized"
- case strings.Contains(message, "sender") && (strings.Contains(message, "valid") || strings.Contains(message, "authoriz")):
-  reason = "sender_not_authorized"
- case strings.Contains(message, "credit") || strings.Contains(message, "quota"):
-  reason = "quota_or_credits"
- case response.StatusCode == http.StatusUnauthorized:
-  reason = "authentication_failed"
- case response.StatusCode == http.StatusTooManyRequests:
-  reason = "rate_limited"
- }
- log.Printf("email_delivery_failed provider=%s status=%d code=%s reason=%s", provider, response.StatusCode, code, reason)
+	var result struct {
+		Code    string `json:"code"`
+		Name    string `json:"name"`
+		Message string `json:"message"`
+	}
+	raw, _ := io.ReadAll(io.LimitReader(response.Body, 64<<10))
+	_ = json.Unmarshal(raw, &result)
+	code := "unknown"
+	for _, candidate := range []string{result.Code, result.Name} {
+		switch candidate {
+		case "unauthorized", "permission_denied", "invalid_parameter", "missing_parameter", "not_enough_credits", "account_under_validation", "duplicate_parameter", "document_not_found", "method_not_allowed", "too_many_requests", "rate_limit_exceeded", "validation_error", "restricted_api_key", "invalid_api_key":
+			code = candidate
+		}
+	}
+	reason := "provider_rejected"
+	message := strings.ToLower(result.Message)
+	switch {
+	case strings.Contains(message, "unrecognized ip") || strings.Contains(message, "unauthorised ip") || strings.Contains(message, "unauthorized ip"):
+		reason = "ip_not_authorized"
+	case strings.Contains(message, "sender") && (strings.Contains(message, "valid") || strings.Contains(message, "authoriz")):
+		reason = "sender_not_authorized"
+	case strings.Contains(message, "credit") || strings.Contains(message, "quota"):
+		reason = "quota_or_credits"
+	case response.StatusCode == http.StatusUnauthorized:
+		reason = "authentication_failed"
+	case response.StatusCode == http.StatusTooManyRequests:
+		reason = "rate_limited"
+	}
+	log.Printf("email_delivery_failed provider=%s status=%d code=%s reason=%s", provider, response.StatusCode, code, reason)
 }
-
 
 // ResendMailer is an optional production adapter; tests can inject Mailer instead.
 type ResendMailer struct {
@@ -256,18 +259,31 @@ func (a *App) provisionEvent(ctx context.Context, eventID int64, student string)
 	if count > 0 {
 		return nil
 	}
-	if a.config.LovableURL == "" || a.config.OnboardingURL == "" {
-		return errors.New("provisioning links not configured")
-	}
 	var email, funnel string
-	if err = tx.QueryRowContext(ctx, "SELECT email,funnel_tier FROM students WHERE id=$1", student).Scan(&email, &funnel); err != nil {
+	var landing, video bool
+	if err = tx.QueryRowContext(ctx, "SELECT email,funnel_tier,tier1_landing,tier1_video FROM students WHERE id=$1", student).Scan(&email, &funnel, &landing, &video); err != nil {
 		return err
 	}
 	if funnel != "tier_1_active" && funnel != "tier_2_active" {
 		return errors.New("provisioning entitlement unavailable")
 	}
+	// Legacy provisioning events created before track entitlements retain landing access.
+	if !landing && !video {
+		landing = true
+	}
+	links := "Your Tier 1 payment is confirmed. Only purchased learning tracks are unlocked.\n\n"
+	if landing {
+		if a.config.LovableURL == "" || a.config.OnboardingURL == "" {
+			return errors.New("provisioning links not configured")
+		}
+		links += fmt.Sprintf("Lovable workspace template: %s\nOnboarding: %s\n", a.config.LovableURL, a.config.OnboardingURL)
+	}
+	if video {
+		links += "AI video learning with CapCut: open Tier 1 in your learning hub. Tool: https://www.capcut.com/tools/ai-video\nCapCut credits or subscriptions are separate from meuseAI tuition.\n"
+	}
+	links += a.origin + "/dashboard"
 	deliveryCtx := context.WithValue(ctx, deliveryKey{}, "meuse-provision-"+strconv.FormatInt(eventID, 10))
-	if err = a.config.Mailer.Send(deliveryCtx, services.Message{To: email, Subject: "Your Lovable learning access is ready", Text: fmt.Sprintf("Your Tier 1 payment is confirmed.\n\nLovable workspace template: %s\nOnboarding: %s\nLearning hub: %s/dashboard", a.config.LovableURL, a.config.OnboardingURL, a.origin)}); err != nil {
+	if err = a.config.Mailer.Send(deliveryCtx, services.Message{To: email, Subject: "Your Tier 1 learning access is ready", Text: links}); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO activity_logs(student_id,event_type,details) VALUES($1,'lovable_provisioning_delivered',$2)", student, string(details)); err != nil {
