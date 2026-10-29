@@ -21,7 +21,7 @@
       if (!data || data.published !== true || !Array.isArray(data.entries)) { root.hidden = true; renderedDay=null; return; }
       const day = Number(module.id.slice(4));
       const examples = data.entries.filter(item => item.day === day);
-      if (examples.length !== 3 || examples.some(item => item.status !== 'approved' || !safeImage(item.image) || typeof item.prompt !== 'string')) {
+      if (examples.length === 0 || examples.some(item => item.status !== 'approved' || !safeImage(item.image) || typeof item.prompt !== 'string')) {
         root.hidden = true; return;
       }
       root.hidden = false;

@@ -218,7 +218,12 @@ func (s *Showcase) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	if published {
+	var exists bool
+	if err = tx.QueryRowContext(r.Context(), "SELECT EXISTS(SELECT 1 FROM showcase_images WHERE id=$1)", id).Scan(&exists); err != nil {
+		showcaseFail(w)
+		return
+	}
+	if published && exists {
 		dashboardJSON(w, 409, map[string]string{"error": "unpublish the gallery before replacing an image"})
 		return
 	}
@@ -365,16 +370,12 @@ func (s *Showcase) Review(w http.ResponseWriter, r *http.Request) {
 		dashboardJSON(w, 400, map[string]string{"error": "record a visual-review note and confirm image rights"})
 		return
 	}
-	tx, published, err := s.writeTx(r)
+	tx, _, err := s.writeTx(r)
 	if err != nil {
 		showcaseFail(w)
 		return
 	}
 	defer tx.Rollback()
-	if published {
-		dashboardJSON(w, 409, map[string]string{"error": "unpublish before reviewing changes"})
-		return
-	}
 	for _, reference := range example.References {
 		var approved bool
 		if err = tx.QueryRowContext(r.Context(), "SELECT approved FROM showcase_images WHERE id=$1", reference).Scan(&approved); err != nil || !approved {
@@ -426,12 +427,14 @@ func (s *Showcase) Publish(w http.ResponseWriter, r *http.Request) {
 			dashboardJSON(w, 400, map[string]string{"error": "confirm the usage rights and record your terms-review note"})
 			return
 		}
-		for _, e := range s.examples {
-			var approved bool
-			if err = tx.QueryRowContext(r.Context(), "SELECT approved FROM showcase_images WHERE id=$1", e.ID).Scan(&approved); err != nil || !approved {
-				dashboardJSON(w, 409, map[string]string{"error": "upload and approve all twelve images before publishing"})
-				return
-			}
+		var count int
+		if err = tx.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM showcase_images WHERE approved=TRUE").Scan(&count); err != nil {
+			showcaseFail(w)
+			return
+		}
+		if count == 0 {
+			dashboardJSON(w, 409, map[string]string{"error": "upload and approve at least one image before publishing"})
+			return
 		}
 	}
 	if _, err = tx.ExecContext(r.Context(), "UPDATE showcase_settings SET published=$1,rights_note=$2,published_at=$3 WHERE id=1", input.Published, strings.TrimSpace(input.Note), time.Now().UTC()); err != nil {
@@ -452,15 +455,16 @@ func (s *Showcase) PublicAsset(w http.ResponseWriter, r *http.Request) {
 			showcaseFail(w)
 			return
 		}
-		if !published {
-			entries = append([]ShowcaseExample(nil), s.examples...)
-			for i := range entries {
-				entries[i].Status = "pending"
+		visible := make([]ShowcaseExample, 0, len(entries))
+		if published {
+			for _, entry := range entries {
+				if entry.Status == "approved" && entry.HasImage {
+					entry.ReviewNote = ""
+					visible = append(visible, entry)
+				}
 			}
 		}
-		for i := range entries {
-			entries[i].ReviewNote = ""
-		}
+		entries = visible
 		dashboardJSON(w, 200, map[string]any{"version": 1, "published": published, "provenance": "Manually uploaded AI-generated course examples; not student work.", "entries": entries})
 		return
 	}
