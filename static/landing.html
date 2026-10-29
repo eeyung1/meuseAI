@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>meuseAI · Master AI Image Generation with Gemini in 4 Days</title>
+  <meta name="description" content="Free 4-day interactive AI image generation curriculum. Hands-on exercises, instant feedback, and gamified XP progression.">
+  <link rel="stylesheet" href="/assets/landing.css">
+  <script defer src="/assets/landing.js"></script>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <span class="brand-dot"></span>meuse<span>AI</span>
+    </a>
+    <nav class="header-nav">
+      <a href="#curriculum">Curriculum</a>
+      <a href="#journey">The 4 Days</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="header-actions">
+      <a href="/login" class="btn-ghost" id="nav-login-btn">Sign In</a>
+      <a href="#join" class="btn-primary-sm">Start Free →</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO SECTION -->
+    <section class="hero">
+      <div class="badge-pill">
+        <span class="spark">✦</span> 4-DAY HANDS-ON SPRINT · 100% FREE
+      </div>
+      <h1 class="hero-title">Create Mind-Blowing AI Images with Gemini.</h1>
+      <p class="hero-subtitle">
+        Four focused daily micro-lessons that turn beginners into visual creators.
+        Complete hands-on prompts, earn XP, unlock tools, and build genuine creative confidence.
+      </p>
+
+      <!-- ENROLLMENT / LOGIN CARD -->
+      <div class="action-card" id="join">
+        <div class="tabs" role="tablist">
+          <button class="tab-btn active" id="tab-signup" type="button" role="tab" aria-selected="true" aria-controls="panel-signup">
+            Claim Your Free Seat
+          </button>
+          <button class="tab-btn" id="tab-login" type="button" role="tab" aria-selected="false" aria-controls="panel-login">
+            Returning Student Login
+          </button>
+        </div>
+
+        <div id="form-feedback" class="feedback" hidden role="status" aria-live="polite"></div>
+
+        <!-- SIGNUP PANEL -->
+        <div class="tab-panel active" id="panel-signup" role="tabpanel" aria-labelledby="tab-signup">
+          <form id="signup-form" novalidate>
+            <div class="field">
+              <label for="signup-name">Full Name</label>
+              <input type="text" id="signup-name" name="full_name" placeholder="e.g. Alex Morgan" required maxlength="255" autocomplete="name">
+            </div>
+
+            <div class="field">
+              <label for="signup-email">Email Address</label>
+              <input type="email" id="signup-email" name="email" placeholder="alex@example.com" required maxlength="255" autocomplete="email">
+            </div>
+
+            <div class="field-checkbox">
+              <input type="checkbox" id="signup-consent" name="consent" required checked>
+              <label for="signup-consent">
+                I want to receive the 4 daily lessons, interactive progression reminders, and practical AI updates. Unsubscribe with 1 click anytime.
+              </label>
+            </div>
+
+            <button type="submit" class="btn-primary" id="signup-submit">
+              Start Day 1 Free →
+            </button>
+            <p class="micro-note">🔒 Passwordless enrollment. Instant verification link. Zero spam.</p>
+          </form>
+        </div>
+
+        <!-- LOGIN / MAGIC LINK PANEL -->
+        <div class="tab-panel" id="panel-login" role="tabpanel" aria-labelledby="tab-login" hidden>
+          <form id="login-form" novalidate>
+            <p class="panel-desc">Enter your email and we'll send you an instant sign-in link valid for 1 hour.</p>
+            <div class="field">
+              <label for="login-email">Email Address</label>
+              <input type="email" id="login-email" name="email" placeholder="alex@example.com" required maxlength="255" autocomplete="email">
+            </div>
+
+            <button type="submit" class="btn-primary" id="login-submit">
+              Send Magic Sign-In Link →
+            </button>
+            <p class="micro-note">Check your spam folder if the email does not arrive within 60 seconds.</p>
+          </form>
+
+          <div class="resend-helper">
+            <span>Waiting for a verification link instead?</span>
+            <button type="button" class="btn-link" id="trigger-resend">Resend verification email</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- METRICS STRIP -->
+    <section class="metrics-strip">
+      <div class="metric">
+        <strong>4 Days</strong>
+        <span>Hands-on micro lessons</span>
+      </div>
+      <div class="metric-divider"></div>
+      <div class="metric">
+        <strong>1,000 XP</strong>
+        <span>Course progression unlocks</span>
+      </div>
+      <div class="metric-divider"></div>
+      <div class="metric">
+        <strong>15 Min/Day</strong>
+        <span>Bite-sized daily exercises</span>
+      </div>
+      <div class="metric-divider"></div>
+      <div class="metric">
+        <strong>₦0</strong>
+        <span>Free beginner track</span>
+      </div>
+    </section>
+
+    <!-- CURRICULUM ROADMAP -->
+    <section class="curriculum-section" id="curriculum">
+      <div class="section-header">
+        <p class="eyebrow">THE 4-DAY JOURNEY</p>
+        <h2>Master visual prompt engineering step by step</h2>
+        <p class="muted">Each day delivers practical technique, an exercise in Gemini, and automatic XP unlocks.</p>
+      </div>
+
+      <div class="timeline" id="journey">
+        <div class="timeline-step">
+          <div class="step-badge">DAY 01</div>
+          <div class="step-card">
+            <div class="step-header">
+              <h3>Prompt Architecture & Lens Direction</h3>
+              <span class="xp-tag">+250 XP</span>
+            </div>
+            <p>Deconstruct image prompts like a film director. Learn focal lengths, framing terms, and how Gemini interprets spatial geometry without messy keyword stuffing.</p>
+            <div class="step-exercise">
+              <strong>Exercise:</strong> Craft an cinematic atmospheric street photograph with directional depth.
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-step">
+          <div class="step-badge">DAY 02</div>
+          <div class="step-card">
+            <div class="step-header">
+              <h3>Volumetric Lighting & Texture Physics</h3>
+              <span class="xp-tag">+250 XP</span>
+            </div>
+            <p>Move beyond flat digital renders. Control rim lights, diffused shadows, atmospheric haze, specular reflections, and tactile surface materials.</p>
+            <div class="step-exercise">
+              <strong>Exercise:</strong> Render a hyper-realistic macro object showcasing caustic light refraction.
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-step">
+          <div class="step-badge">DAY 03</div>
+          <div class="step-card">
+            <div class="step-header">
+              <h3>Character Consistency & Style Anchors</h3>
+              <span class="xp-tag">+250 XP</span>
+            </div>
+            <p>The hardest challenge in generative art solved: maintain character identity, costume details, and signature artistic styles across different scenes and angles.</p>
+            <div class="step-exercise">
+              <strong>Exercise:</strong> Generate your signature character in two distinct camera angles and actions.
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-step">
+          <div class="step-badge">DAY 04</div>
+          <div class="step-card">
+            <div class="step-header">
+              <h3>The Elite Showcase & Funnel Upskill</h3>
+              <span class="xp-tag">+250 XP</span>
+            </div>
+            <p>Combine lighting, prompt structure, and character control to build your hero portfolio piece. Earn the 1,000 XP Graduate status and unlock the Tier 1 Lovable accelerator.</p>
+            <div class="step-exercise">
+              <strong>Exercise:</strong> Submit your complete portfolio piece and unlock Tier 1 accelerator access.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- UPGRADE PATH -->
+    <section class="upsell-preview">
+      <div class="upsell-card">
+        <p class="eyebrow">YOUR ACCELERATOR PATHWAY</p>
+        <h2>From Visual Prompting to AI Software Builder</h2>
+        <p class="muted">
+          Completing the 4 free days unlocks the optional paid developer tracks:
+        </p>
+        <div class="tier-comparison">
+          <div class="tier-box">
+            <span class="pill-track">FOUNDATION</span>
+            <h3>4-Day Free Sprint</h3>
+            <p class="price">Free</p>
+            <ul>
+              <li>✓ Gemini prompt mechanics</li>
+              <li>✓ Interactive student dashboard</li>
+              <li>✓ 1,000 XP progression tracking</li>
+              <li>✓ Cohort progress leaderboard</li>
+            </ul>
+          </div>
+          <div class="tier-box featured">
+            <span class="pill-track highlight">TIER 1 ACCELERATOR</span>
+            <h3>Lovable Landing Pages</h3>
+            <p class="price">₦5,000</p>
+            <ul>
+              <li>✓ Turn AI images into live web apps</li>
+              <li>✓ Instant Lovable template deployment</li>
+              <li>✓ Custom onboarding & checkout setup</li>
+              <li>✓ Automatic post-Day 4 invitation</li>
+            </ul>
+          </div>
+          <div class="tier-box">
+            <span class="pill-track">TIER 2 ELITE</span>
+            <h3>Autonomous AI Coding Agents</h3>
+            <p class="price">₦25,000</p>
+            <ul>
+              <li>✓ Multi-agent coding architectures</li>
+              <li>✓ Full-stack autonomous pipelines</li>
+              <li>✓ Production deployment automation</li>
+              <li>✓ Gated manual readiness review</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ SECTION -->
+    <section class="faq-section" id="faq">
+      <div class="section-header">
+        <p class="eyebrow">FREQUENTLY ASKED QUESTIONS</p>
+        <h2>Everything you need to know</h2>
+      </div>
+
+      <div class="faq-grid">
+        <div class="faq-item">
+          <h3>Is the 4-day sprint really free?</h3>
+          <p>Yes, 100% free with no credit card required. You get all 4 lessons, exercises, XP tracking, and learning hub access with just your name and email.</p>
+        </div>
+        <div class="faq-item">
+          <h3>How much time does each lesson take?</h3>
+          <p>Each lesson is designed for busy schedules: roughly 5 minutes of focused reading and 10 minutes of hands-on prompt creation in Gemini.</p>
+        </div>
+        <div class="faq-item">
+          <h3>How does login work without passwords?</h3>
+          <p>We use secure, passwordless magic links. When you sign up, you verify your email once to unlock a 7-day session. If you switch devices or your session expires, simply request a magic link.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Can I unsubscribe if it's not for me?</h3>
+          <p>Every email includes a direct, one-click unsubscribe link. We strictly respect your inbox and never sell your details.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FINAL CTA -->
+    <section class="final-cta">
+      <h2>Ready to turn ideas into visual mastery?</h2>
+      <p class="muted">Join your cohort today. Complete Day 1 in the next 15 minutes.</p>
+      <a href="#join" class="btn-primary" style="display:inline-block;max-width:280px;text-align:center;">Claim Your Free Seat →</a>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <div class="brand">
+        <span class="brand-dot"></span>meuse<span>AI</span>
+      </div>
+      <p class="muted small">Learn by making. A little practice. A new possibility.</p>
+      <div class="footer-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="#curriculum">Curriculum</a>
+        <a href="/login">Sign In</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

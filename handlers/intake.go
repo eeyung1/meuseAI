@@ -19,6 +19,7 @@ import (
 
 	"github.com/eeyung1/meuseAI/db"
 	"github.com/eeyung1/meuseAI/services"
+	assets "github.com/eeyung1/meuseAI/static"
 )
 
 const verificationLifetime = 24 * time.Hour
@@ -45,7 +46,15 @@ func NewIntake(database *db.DB, mailer services.Mailer, publicURL string) (*Inta
 
 func (h *Intake) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/students/signup", h.Signup)
+	mux.HandleFunc("POST /api/v1/students/resend-verification", h.ResendVerification)
 	mux.HandleFunc("GET /api/v1/students/verify", h.Verify)
+	mux.HandleFunc("GET /verify", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		http.ServeFileFS(w, r, assets.Assets, "verify.html")
+	})
 	mux.HandleFunc("GET /api/v1/students/unsubscribe", h.Unsubscribe)
 	// Support RFC 8058 one-click requests as well as the required GET route.
 	mux.HandleFunc("POST /api/v1/students/unsubscribe", h.Unsubscribe)
@@ -185,6 +194,10 @@ func (h *Intake) Verify(w http.ResponseWriter, r *http.Request) {
 	}
 	token, ok := intakeBearer(r)
 	if !ok {
+		if strings.Contains(r.Header.Get("Accept"), "text/html") {
+			http.Redirect(w, r, "/verify?error=invalid", http.StatusSeeOther)
+			return
+		}
 		intakeError(w, 400, "invalid or expired token")
 		return
 	}
@@ -234,6 +247,10 @@ func (h *Intake) transition(w http.ResponseWriter, r *http.Request, token string
 			}
 		}
 		if errors.Is(err, sql.ErrNoRows) {
+			if verify && strings.Contains(r.Header.Get("Accept"), "text/html") {
+				http.Redirect(w, r, "/verify?error=expired", http.StatusSeeOther)
+				return
+			}
 			intakeError(w, 400, "invalid or expired token")
 			return
 		}
@@ -254,5 +271,96 @@ func (h *Intake) transition(w http.ResponseWriter, r *http.Request, token string
 		intakeError(w, 503, "request unavailable")
 		return
 	}
+	if verify && strings.Contains(r.Header.Get("Accept"), "text/html") {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		http.ServeFileFS(w, r, assets.Assets, "verify.html")
+		return
+	}
 	intakeJSON(w, 200, map[string]string{"status": status})
+}
+
+func (h *Intake) ResendVerification(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(405)
+		return
+	}
+	var input struct {
+		Email string `json:"email"`
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&input); err != nil {
+		intakeError(w, 400, "invalid payload")
+		return
+	}
+	email := strings.ToLower(strings.TrimSpace(input.Email))
+	addr, err := mail.ParseAddress(email)
+	if email == "" || len(email) > 255 || err != nil || addr.Address != email || strings.ContainsAny(email, "\r\n") {
+		intakeError(w, 400, "valid email is required")
+		return
+	}
+	tx, err := h.database.BeginTx(r.Context(), nil)
+	if err != nil {
+		intakeError(w, 503, "request unavailable")
+		return
+	}
+	defer tx.Rollback()
+
+	var id, name, unsubToken string
+	var verified bool
+	err = tx.QueryRowContext(r.Context(), "SELECT id, full_name, email_verified, unsubscribe_token FROM students WHERE LOWER(email) = $1 AND unsubscribed_at IS NULL", email).Scan(&id, &name, &verified, &unsubToken)
+	if errors.Is(err, sql.ErrNoRows) {
+		// Generic 202 response to prevent email harvesting
+		intakeJSON(w, 202, map[string]string{"message": "If eligible, check your email for verification."})
+		return
+	}
+	if err != nil {
+		intakeError(w, 503, "request unavailable")
+		return
+	}
+
+	if !verified {
+		verify, err := intakeToken()
+		if err != nil {
+			intakeError(w, 503, "request unavailable")
+			return
+		}
+		now := h.now().UTC()
+		_, err = tx.ExecContext(r.Context(), "UPDATE students SET verification_token = $1, updated_at = $2 WHERE id = $3", tokenDigest(verify), now, id)
+		if err != nil {
+			intakeError(w, 503, "request unavailable")
+			return
+		}
+		_ = intakeAudit(r.Context(), tx, id, "resend_verification")
+		unsubscribeURL := h.baseURL + "/api/v1/students/unsubscribe"
+		message := services.Message{
+			To:             email,
+			Subject:        "Verify your meuseAI email",
+			Text:           "Verify your email within 24 hours:\n" + h.baseURL + "/api/v1/students/verify?token=" + verify + "\n\nUnsubscribe:\n" + unsubscribeURL,
+			UnsubscribeURL: unsubscribeURL,
+		}
+		if err = h.mailer.Send(r.Context(), message); err != nil {
+			intakeError(w, 503, "email delivery unavailable; retry signup")
+			return
+		}
+		if err = tx.Commit(); err != nil {
+			intakeError(w, 503, "request unavailable")
+			return
+		}
+	} else {
+		_ = tx.Commit()
+		message := services.Message{
+			To:      email,
+			Subject: "Your meuseAI account is already verified",
+			Text:    "Hi " + name + ",\n\nYour meuseAI account is already active! You can access your learning hub anytime here:\n" + h.baseURL + "/dashboard\n\nIf you need a new sign-in link, request a magic link from our home page:\n" + h.baseURL + "/login\n\nHappy learning,\nmeuseAI Team",
+		}
+		_ = h.mailer.Send(r.Context(), message)
+	}
+
+	intakeJSON(w, 202, map[string]string{"message": "If eligible, check your email for verification."})
 }

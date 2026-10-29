@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>meuseAI · Verification</title>
+  <link rel="stylesheet" href="/assets/landing.css">
+  <style>
+    .verify-container {
+      min-height: calc(100vh - 180px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px 20px;
+    }
+    .verify-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 40px 36px;
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    }
+    .status-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+    }
+    .status-icon.success {
+      background: rgba(87, 217, 163, 0.15);
+      border: 1px solid var(--green);
+      color: var(--green);
+      box-shadow: 0 0 25px rgba(87, 217, 163, 0.3);
+    }
+    .status-icon.error {
+      background: rgba(244, 63, 94, 0.15);
+      border: 1px solid #f43f5e;
+      color: #fca5a5;
+    }
+    .verify-box h1 {
+      font-size: 24px;
+      margin: 0 0 12px;
+      letter-spacing: -0.5px;
+    }
+    .verify-box p {
+      color: var(--muted);
+      font-size: 14px;
+      margin: 0 0 24px;
+      line-height: 1.5;
+    }
+    .countdown-note {
+      font-size: 12px;
+      color: var(--yellow);
+      margin-top: 14px;
+    }
+    .resend-box {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <span class="brand-dot"></span>meuse<span>AI</span>
+    </a>
+  </header>
+
+  <main class="verify-container">
+    <div class="verify-box">
+      <!-- SUCCESS STATE -->
+      <div id="state-success">
+        <div class="status-icon success">✦</div>
+        <p class="eyebrow">EMAIL CONFIRMED</p>
+        <h1>Welcome to meuseAI</h1>
+        <p>Your email has been verified and your 7-day student session is active. Ready to build your creative confidence?</p>
+        <a href="/dashboard" class="btn-primary" id="btn-enter" style="display:inline-block;text-align:center;">
+          Launch Learning Hub Now →
+        </a>
+        <p class="countdown-note" id="countdown-text">Redirecting automatically in 2 seconds…</p>
+      </div>
+
+      <!-- ERROR STATE -->
+      <div id="state-error" hidden>
+        <div class="status-icon error">⚠</div>
+        <p class="eyebrow" style="color:#fca5a5;">LINK EXPIRED OR INVALID</p>
+        <h1>Verification Link Expired</h1>
+        <p>This verification link is either invalid, already used, or has passed its 24-hour expiration window.</p>
+
+        <div class="resend-box">
+          <form id="resend-form">
+            <div class="field">
+              <label for="resend-email">Enter your email for a new link</label>
+              <input type="email" id="resend-email" placeholder="you@example.com" required>
+            </div>
+            <button type="submit" class="btn-primary" id="btn-resend">
+              Send Fresh Verification Link →
+            </button>
+            <div id="resend-msg" class="feedback" hidden style="margin-top:12px;"></div>
+          </form>
+        </div>
+
+        <p style="margin-top:20px;font-size:12px;">
+          <a href="/" style="color:var(--yellow);text-decoration:underline;">← Back to Home Page</a>
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <script defer src="/assets/verify.js"></script>
+</body>
+</html>

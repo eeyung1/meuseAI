@@ -321,3 +321,65 @@ func TestIntakeAuditRollback(t *testing.T) {
 		t.Fatal("token consumed by failed transaction")
 	}
 }
+
+func TestResendVerificationAndHTMLVerify(t *testing.T) {
+	d, _, m, mux := intakeFixture(t, false)
+	// Initial signup
+	if w := intakeRequest(mux, "POST", "/api/v1/students/signup", intakePayload); w.Code != 202 {
+		t.Fatal(w.Body.String())
+	}
+	if len(m.Messages()) != 1 {
+		t.Fatalf("expected 1 email, got %d", len(m.Messages()))
+	}
+	initialVerify, _ := intakeLinks(t, m)
+
+	// Resend verification for existing unverified student
+	resendBody := `{"email":"ada@example.com"}`
+	w := intakeRequest(mux, "POST", "/api/v1/students/resend-verification", resendBody)
+	if w.Code != 202 {
+		t.Fatalf("resend failed with %d: %s", w.Code, w.Body.String())
+	}
+	if len(m.Messages()) != 2 {
+		t.Fatalf("expected 2 emails after resend, got %d", len(m.Messages()))
+	}
+	newVerify, _ := intakeLinks(t, m)
+	if initialVerify == newVerify {
+		t.Fatal("resend did not issue a new distinct verification token")
+	}
+
+	// Resend for non-existent email returns 202 without leaking info or sending email
+	w = intakeRequest(mux, "POST", "/api/v1/students/resend-verification", `{"email":"ghost@example.com"}`)
+	if w.Code != 202 || len(m.Messages()) != 2 {
+		t.Fatalf("resend for non-existent email failed code=%d msgs=%d", w.Code, len(m.Messages()))
+	}
+
+	// Invalid input to resend
+	if w = intakeRequest(mux, "POST", "/api/v1/students/resend-verification", `{"email":"bad-email"}`); w.Code != 400 {
+		t.Fatalf("expected 400 for bad email, got %d", w.Code)
+	}
+
+	// HTML Verify GET with Accept: text/html
+	rHtml := httptest.NewRequest("GET", newVerify, nil)
+	rHtml.Header.Set("Accept", "text/html,application/xhtml+xml")
+	wHtml := httptest.NewRecorder()
+	mux.ServeHTTP(wHtml, rHtml)
+	if wHtml.Code != 200 || !strings.Contains(wHtml.Body.String(), "Welcome to meuseAI") {
+		t.Fatalf("HTML verification failed: code=%d body=%s", wHtml.Code, wHtml.Body.String())
+	}
+
+	// Second verify attempt with HTML redirects to /verify?error=expired
+	wReplay := httptest.NewRecorder()
+	mux.ServeHTTP(wReplay, rHtml)
+	if wReplay.Code != http.StatusSeeOther || !strings.Contains(wReplay.Header().Get("Location"), "/verify?error=expired") {
+		t.Fatalf("expected redirect to expired, got code=%d loc=%s", wReplay.Code, wReplay.Header().Get("Location"))
+	}
+
+	// /verify route serves verify.html
+	rVerifyPage := httptest.NewRequest("GET", "/verify", nil)
+	wVerifyPage := httptest.NewRecorder()
+	mux.ServeHTTP(wVerifyPage, rVerifyPage)
+	if wVerifyPage.Code != 200 || !strings.Contains(wVerifyPage.Body.String(), "Verification") {
+		t.Fatalf("GET /verify failed: code=%d", wVerifyPage.Code)
+	}
+	_ = d
+}

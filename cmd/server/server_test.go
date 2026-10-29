@@ -190,3 +190,112 @@ func TestConfigFromEnv(t *testing.T) {
 		t.Fatal("invalid dry-run accepted")
 	}
 }
+
+func TestLandingAndMagicLoginJourney(t *testing.T) {
+	ctx := context.Background()
+	config := testConfig()
+	mailer := &services.DryRunMailer{}
+	config.Mailer = mailer
+	a, err := New(ctx, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+
+	// 1. Unauthenticated visitor landing on GET / receives landing.html
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	a.Handler.ServeHTTP(w, req)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "Claim Your Free Seat") {
+		t.Fatalf("landing page failed: code=%d body=%s", w.Code, w.Body.String())
+	}
+
+	// Insert an existing verified student
+	now := time.Now().UTC()
+	_, err = a.Database.Exec("INSERT INTO students (id, full_name, email, email_verified, consent_timestamp, unsubscribe_token, created_at, updated_at) VALUES ('student-1', 'Jane Doe', 'jane@example.com', TRUE, $1, 'unsub-token-1', $1, $1)", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 2. Request Magic Link for existing verified student
+	reqML := httptest.NewRequest("POST", "/api/v1/students/magic-link", strings.NewReader(`{"email":"jane@example.com"}`))
+	reqML.Header.Set("Content-Type", "application/json")
+	wML := httptest.NewRecorder()
+	a.Handler.ServeHTTP(wML, reqML)
+	if wML.Code != 202 {
+		t.Fatalf("magic link request failed: code=%d body=%s", wML.Code, wML.Body.String())
+	}
+	messages := mailer.Messages()
+	if len(messages) == 0 {
+		t.Fatal("magic link email not sent")
+	}
+	msg := messages[len(messages)-1]
+	if !strings.Contains(msg.Subject, "Sign-In Link") {
+		t.Fatalf("unexpected email subject: %s", msg.Subject)
+	}
+
+	// Extract token from magic login link in email
+	parsedURL := ""
+	for _, word := range strings.Fields(msg.Text) {
+		if strings.Contains(word, "/api/v1/students/magic-login?token=") {
+			parsedURL = word
+			break
+		}
+	}
+	if parsedURL == "" {
+		t.Fatalf("magic link not found in email text: %s", msg.Text)
+	}
+	u, _ := url.Parse(parsedURL)
+	token := u.Query().Get("token")
+	if token == "" {
+		t.Fatal("empty magic token in email")
+	}
+
+	// 3. Redeem magic login in browser (Accept: text/html)
+	reqRedeem := httptest.NewRequest("GET", "/api/v1/students/magic-login?token="+url.QueryEscape(token), nil)
+	reqRedeem.Header.Set("Accept", "text/html")
+	wRedeem := httptest.NewRecorder()
+	a.Handler.ServeHTTP(wRedeem, reqRedeem)
+	if wRedeem.Code != http.StatusSeeOther || wRedeem.Header().Get("Location") != "/dashboard" {
+		t.Fatalf("magic login failed: code=%d loc=%s", wRedeem.Code, wRedeem.Header().Get("Location"))
+	}
+	var sessionCookieVal string
+	for _, cookie := range wRedeem.Result().Cookies() {
+		if cookie.Name == sessionCookie {
+			sessionCookieVal = cookie.Value
+			break
+		}
+	}
+	if sessionCookieVal == "" {
+		t.Fatal("session cookie missing after magic login")
+	}
+
+	// 4. Authenticated visitor on GET / redirects to /dashboard
+	reqAuth := httptest.NewRequest("GET", "/", nil)
+	reqAuth.AddCookie(&http.Cookie{Name: sessionCookie, Value: sessionCookieVal})
+	wAuth := httptest.NewRecorder()
+	a.Handler.ServeHTTP(wAuth, reqAuth)
+	if wAuth.Code != http.StatusSeeOther || wAuth.Header().Get("Location") != "/dashboard" {
+		t.Fatalf("authenticated root did not redirect to dashboard: code=%d loc=%s", wAuth.Code, wAuth.Header().Get("Location"))
+	}
+
+	// 5. Logout clears the cookie
+	reqLogout := httptest.NewRequest("POST", "/api/v1/students/logout", nil)
+	reqLogout.Header.Set("Accept", "text/html")
+	reqLogout.AddCookie(&http.Cookie{Name: sessionCookie, Value: sessionCookieVal})
+	wLogout := httptest.NewRecorder()
+	a.Handler.ServeHTTP(wLogout, reqLogout)
+	if wLogout.Code != http.StatusSeeOther || wLogout.Header().Get("Location") != "/" {
+		t.Fatalf("logout did not redirect to root: code=%d", wLogout.Code)
+	}
+	cookieCleared := false
+	for _, cookie := range wLogout.Result().Cookies() {
+		if cookie.Name == sessionCookie && cookie.MaxAge < 0 {
+			cookieCleared = true
+			break
+		}
+	}
+	if !cookieCleared {
+		t.Fatal("logout did not clear session cookie")
+	}
+}
