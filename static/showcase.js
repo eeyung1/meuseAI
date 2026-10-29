@@ -41,7 +41,7 @@
         image.addEventListener('error', () => { image.hidden = true; fallback.hidden = false; });
         const title = document.createElement('h4'); title.textContent = example.title;
         const teaching = document.createElement('p'); teaching.className = 'small'; teaching.textContent = example.explanation;
-        const details = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = 'Read the exact prompt';
+        const details = document.createElement('div'); details.className = 'showcase-prompt'; const summary = document.createElement('strong'); summary.textContent = 'Prompt to try';
         const prompt = document.createElement('p'); prompt.textContent = example.prompt; details.append(summary, prompt);
         const references = document.createElement('p'); references.className = 'muted small';
         references.textContent = example.references?.length ? 'Reference-based example: attach the preceding example image in Gemini before using this prompt.' : 'Text-only example: no reference image required.';

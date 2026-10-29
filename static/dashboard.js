@@ -208,10 +208,42 @@
     showcase.render(module, { promptField: $('gemini-prompt'), onUse: example => {
       studioMode = 'scratch';
       $('mode-scratch')?.classList.add('active'); $('mode-selfie')?.classList.remove('active');
+      const activeModule = snapshot?.modules.find(item => item.id === selected);
+      if (activeModule) renderStudioForModule(activeModule);
       saveDraft();
+      openPractice();
       if ($('studio-copied-note')) { $('studio-copied-note').hidden = false; $('studio-copied-note').textContent = example.references?.length ? 'Prompt loaded. Download and attach the preceding example image in Gemini before generating.' : 'Prompt loaded. Copy it, open Gemini, and paste to generate your own version.'; }
     } });
   }
+
+  function openPractice() {
+    const module = snapshot?.modules.find(item => item.id === selected);
+    if (!module || !['available', 'completed'].includes(module.state) || !module.id.startsWith('day_')) return;
+    const dialog = $('prompt-lab-dialog');
+    if (!dialog) return;
+    dialog.hidden = false;
+    if (typeof dialog.showModal === 'function' && !dialog.open) dialog.showModal();
+    $('open-prompt-lab')?.setAttribute('aria-expanded', 'true');
+    $('gemini-prompt')?.focus();
+  }
+  function closePractice() {
+    const dialog = $('prompt-lab-dialog');
+    if (!dialog) return;
+    const wasOpen = !dialog.hidden;
+    if (typeof dialog.close === 'function' && dialog.open) dialog.close();
+    dialog.hidden = true;
+    $('open-prompt-lab')?.setAttribute('aria-expanded', 'false');
+    if (wasOpen) $('open-prompt-lab')?.focus();
+  }
+  if ($('prompt-lab-dialog')) $('prompt-lab-dialog').hidden = true;
+  $('open-prompt-lab')?.addEventListener('click', openPractice);
+  $('close-prompt-lab')?.addEventListener('click', closePractice);
+  $('prompt-lab-dialog')?.addEventListener('cancel', event => { event.preventDefault(); closePractice(); });
+  $('prompt-lab-dialog')?.addEventListener('close', () => {
+    $('prompt-lab-dialog').hidden = true;
+    $('open-prompt-lab')?.setAttribute('aria-expanded', 'false');
+    $('open-prompt-lab')?.focus();
+  });
 
   function renderModule() {
     if (!snapshot) return;
@@ -228,6 +260,9 @@
 
     const lesson = lessons[module.id];
     const canRead = lesson && ['available','completed'].includes(module.state);
+    if ($('open-prompt-lab')) $('open-prompt-lab').disabled = !canRead;
+    if ($('prompt-lab-dialog-title')) $('prompt-lab-dialog-title').textContent = `${module.title} · Gemini Prompt Lab`;
+    if (!canRead && $('prompt-lab-dialog') && !$('prompt-lab-dialog').hidden) closePractice();
     if ($('lesson-content')) {
       $('lesson-content').hidden = !canRead;
       if (canRead) {
@@ -259,7 +294,7 @@
 
   document.querySelectorAll('[data-module]').forEach(button => button.addEventListener('click', () => {
     if (busy || selected === button.dataset.module) return;
-    saveDraft(); selected = button.dataset.module; restoreDraft(); if (snapshot) render();
+    saveDraft(); closePractice(); selected = button.dataset.module; restoreDraft(); if (snapshot) render();
   }));
 
   $('mode-selfie')?.addEventListener('click', () => {
