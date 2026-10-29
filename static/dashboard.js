@@ -7,6 +7,7 @@
   let studioMode = 'selfie'; // 'selfie' | 'scratch'
   let activeCelebrationDay = null;
 
+  const showcase = window.MeuseShowcase?.create({ root: $('showcase-gallery'), document, fetch, confirm: message => window.confirm(message) });
   const labels = { available: 'Available now', completed: 'Completed', locked: 'Complete previous lesson', scheduled: 'Opens later', unlocked: 'Unlocked' };
   function notice(message) { $('notice').hidden = !message; $('notice').textContent = message || ''; }
   function connection(text, live = false) { $('connection').textContent = text; $('connection').parentElement.classList.toggle('live', live); }
@@ -202,6 +203,16 @@
     }
   }
 
+  function renderShowcase(module) {
+    if (!showcase) return;
+    showcase.render(module, { promptField: $('gemini-prompt'), onUse: example => {
+      studioMode = 'scratch';
+      $('mode-scratch')?.classList.add('active'); $('mode-selfie')?.classList.remove('active');
+      saveDraft();
+      if ($('studio-copied-note')) { $('studio-copied-note').hidden = false; $('studio-copied-note').textContent = example.references?.length ? 'Prompt loaded. Download and attach the preceding example image in Gemini before generating.' : 'Prompt loaded. Copy it, open Gemini, and paste to generate your own version.'; }
+    } });
+  }
+
   function renderModule() {
     if (!snapshot) return;
     const module = snapshot.modules.find(item => item.id === selected);
@@ -234,6 +245,7 @@
       if (!remaining) scheduleRefresh();
     }
     renderStudioForModule(module);
+    renderShowcase(module);
 
     // Social share rendering for completed module
     if ($('social-celebration')) {

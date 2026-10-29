@@ -84,3 +84,11 @@ Lessons release at verification + 0/24/48/72 hours and still require previous co
 The Prompt Lab teaches short, sequential experiments, uses gender-neutral optional photo references, and provides separate Copy and Open Gemini actions. Clipboard failure offers manual selection. Prompt, submission and reflection drafts are stored per student/module in localStorage; do not enter sensitive information on shared devices. Submitted work is returned only in the authenticated student's own module snapshot. No image upload, automated quality grading, or Gemini API integration is claimed.
 
 Tier 1 uses a shared 1,000-XP/10% policy. Checkout stores its agreed amount; webhooks validate the signed amount against that record, including if XP changes later. Existing full-price pending checkouts remain valid. Rejected social-share links can be corrected and resubmitted; PostgreSQL review locks prevent double awards.
+
+## Curated showcase gallery (foundation)
+
+`static/assets/showcase/manifest.json` is the single source of truth for twelve proposed course examples. `static/showcase.js` renders three cards for available/completed lessons only. `published` is intentionally false until image production and visual/terms review are complete. No generated assets or student galleries are included in this stage.
+
+The manifest and final JPEGs are embedded into the Go binary and served through an allowlisted `/assets/showcase/{file}` route. CI validates prompt/reference ordering and, for approved images, checks JPEG dimensions, byte size, model/attempt metadata and checksum. Publication additionally requires all twelve approved entries and a dated terms review. See `docs/showcase-production-review.md` for the exact proposed prompts and review sequence.
+
+The gallery is labeled as AI-generated curated examples. Prompt selection confirms replacement of existing drafts, saves the chosen prompt and focuses the lab. Students still use external Gemini. No runtime Gemini key is needed for the student dashboard.

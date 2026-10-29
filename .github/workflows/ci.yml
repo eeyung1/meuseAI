@@ -47,7 +47,7 @@ jobs:
         run: go test -v -race ./...
 
       - name: Dashboard behavior tests
-        run: node --test static/dashboard.test.cjs
+        run: node --test static/*.test.cjs
 
       - name: Validate SQLite Schema Syntax
         run: python3 -c "import sqlite3; sqlite3.connect(':memory:').executescript(open('db/schema.sqlite').read())"
