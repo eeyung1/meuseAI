@@ -102,9 +102,129 @@
     day_3: { goal: 'Keep a subject consistent', time: '20 minutes', learn: 'Describe a few stable visual anchors: colours, clothing, shape or distinctive details. Repeat those anchors, and use your earlier image as a reference if available. Exact identity preservation is not guaranteed.', task: 'Create two scenes featuring the same subject. Repeat its anchors and compare the outputs.', question: 'Which details stayed consistent? What drifted, and how would you improve your instructions?', practice: 'Try a third scene. Strengthen only the details that drifted.', example: 'The same small red delivery bicycle with a cream basket and round brass bell, first outside a bakery, then beside a park. Keep the bicycle design and colours consistent.' },
     day_4: { goal: 'Refine a final portfolio image', time: '20–25 minutes', learn: 'Editing is a conversation. State what to preserve and request one specific change at a time. Judge each result against your original goal.', task: 'Choose an earlier image. Make two follow-up edits, then select your strongest version for a business, personal or creative use.', question: 'What were your two edits, what improved, and where would you use the final image?', practice: 'Create a landscape and square variation for different placements.', example: 'Keep the subject and its identity unchanged. Simplify the background and leave clear space on the right for a headline. Then make a second edit to soften the shadows.' }
   };
-  const recipes = Object.fromEntries(Object.entries(lessons).map(([id, lesson]) => [id, {
-    scratch: { tag: 'Build and compare', guide: 'Edit the example to reflect your own subject. Generate in Gemini, then return to record your observations.', presets: [{ label: 'Start with today’s example', text: lesson.example }] },
-    selfie: { tag: 'Optional reference photo', guide: 'In Gemini, attach a photo you have permission to use. Paste the prompt and describe what to keep. A photo is optional; you can use the creative track instead.', presets: [{ label: 'Adapt a reference photo', text: 'Using my attached reference image, preserve the subject’s recognizable features and natural appearance. ' + lesson.example }] }
+  // Ten themes per lesson, adapted to each day’s learning goal and both creation modes.
+  const promptThemes = [
+  {
+    "label": "Red-carpet glamour",
+    "subject": "an adult woman in an emerald evening gown with gold earrings",
+    "scene": "a red-carpet premiere with velvet ropes",
+    "alternate": "a marble hotel staircase",
+    "style": "fashion editorial photography",
+    "light": "soft beauty lighting from a large front-left source",
+    "comparison": "dramatic warm side lighting",
+    "anchors": "emerald gown, gold earrings and swept-back hairstyle",
+    "edit": "remove distracting guests and simplify the backdrop"
+  },
+  {
+    "label": "Royal African elegance",
+    "subject": "an adult woman in a richly woven purple and gold aso-oke outfit with a sculptural gele",
+    "scene": "an elegant palace courtyard",
+    "alternate": "a garden pavilion",
+    "style": "luxury cultural portrait photography",
+    "light": "warm diffused morning light",
+    "comparison": "cool overcast daylight",
+    "anchors": "purple and gold fabric, gele silhouette and coral necklace",
+    "edit": "bring out the woven fabric texture without changing the outfit"
+  },
+  {
+    "label": "Island getaway",
+    "subject": "an adult woman wearing a flowing ivory resort dress and a wide-brimmed straw hat",
+    "scene": "a tropical seaside terrace",
+    "alternate": "a calm sandy beach",
+    "style": "natural travel magazine photography",
+    "light": "gentle sunrise lighting",
+    "comparison": "golden sunset backlighting",
+    "anchors": "ivory dress, straw hat and delicate gold bracelet",
+    "edit": "remove background clutter and keep the ocean horizon level"
+  },
+  {
+    "label": "Luxury sports car",
+    "subject": "an adult man in a tailored charcoal suit beside a pearl-white luxury sports car with closed doors",
+    "scene": "a modern mansion driveway",
+    "alternate": "a waterfront boulevard",
+    "style": "automotive lifestyle photography",
+    "light": "soft overcast lighting with controlled reflections",
+    "comparison": "warm sunset side lighting",
+    "anchors": "charcoal suit, pearl-white coupe, black wheels and red brake calipers",
+    "edit": "clean up reflections on the car while preserving its body shape"
+  },
+  {
+    "label": "Penthouse confidence",
+    "subject": "an adult man in a navy dinner jacket and black trousers",
+    "scene": "a glass-walled penthouse overlooking a city skyline",
+    "alternate": "a rooftop terrace",
+    "style": "cinematic lifestyle portrait photography",
+    "light": "soft window light",
+    "comparison": "dramatic blue-hour lighting with warm practical lamps",
+    "anchors": "navy jacket, black trousers and silver wristwatch",
+    "edit": "simplify the skyline and create clean negative space beside the subject"
+  },
+  {
+    "label": "Fashion cover",
+    "subject": "an adult fashion model wearing a structured scarlet suit",
+    "scene": "a minimalist cream studio",
+    "alternate": "a modern art museum foyer",
+    "style": "high-fashion editorial photography",
+    "light": "broad softbox lighting",
+    "comparison": "hard directional light with crisp shadows",
+    "anchors": "scarlet suit, short natural hairstyle and black ankle boots",
+    "edit": "remove visual distractions and leave clear space above for a future headline without adding text"
+  },
+  {
+    "label": "Neon future",
+    "subject": "an adult explorer in a silver futuristic jacket with turquoise piping",
+    "scene": "a rain-soaked neon megacity street",
+    "alternate": "an elevated futuristic train platform",
+    "style": "cinematic science-fiction concept photography",
+    "light": "diffused cyan neon light",
+    "comparison": "contrasting magenta rim lighting",
+    "anchors": "silver jacket, turquoise piping and translucent visor",
+    "edit": "reduce excessive neon glare while preserving the reflections and subject"
+  },
+  {
+    "label": "Solarpunk tomorrow",
+    "subject": "an adult architect in an olive-green futuristic coat",
+    "scene": "a lush solar-powered city with rooftop gardens",
+    "alternate": "a pedestrian bridge between green towers",
+    "style": "optimistic futuristic architectural portrait photography",
+    "light": "soft morning sunlight",
+    "comparison": "warm late-afternoon lighting",
+    "anchors": "olive coat, round glasses and a small brass brooch",
+    "edit": "simplify distant buildings and clarify the garden details"
+  },
+  {
+    "label": "Lunar supercar",
+    "subject": "an adult astronaut beside a graphite futuristic rover with four oversized wheels",
+    "scene": "a moon base beneath a large observation dome",
+    "alternate": "a lunar ridge with Earth visible in the sky",
+    "style": "realistic cinematic space exploration art",
+    "light": "soft dome lighting",
+    "comparison": "low-angle sunlight with long lunar shadows",
+    "anchors": "white spacesuit, orange shoulder patch and graphite four-wheel rover",
+    "edit": "remove floating debris and clarify the rover wheel contact with the ground"
+  },
+  {
+    "label": "Galactic royalty",
+    "subject": "an adult space traveller in an indigo cloak embroidered with tiny silver stars",
+    "scene": "an orbital observatory overlooking a luminous violet nebula",
+    "alternate": "a crystal balcony above an alien planet",
+    "style": "detailed cinematic galactic fantasy art",
+    "light": "soft violet nebula glow",
+    "comparison": "warm starlight with cool blue rim lighting",
+    "anchors": "indigo cloak, silver star embroidery and crescent-shaped brooch",
+    "edit": "reduce background stars and strengthen separation between the traveller and nebula"
+  }
+];
+  function themedPrompt(id, theme) {
+    const base = `Create ${theme.subject} in ${theme.scene}. Use ${theme.style}, ${theme.light}, a clear focal subject and a balanced portrait composition. Preserve natural proportions. No logos, watermarks or text.`;
+    if (id === 'day_1') return `${base} After generating this image, make a second version changing only the setting to ${theme.alternate}. Keep the subject, outfit, style and lighting unchanged. Compare the two settings.`;
+    if (id === 'day_2') return `${base} For a second generation, keep the subject, camera angle, composition and setting identical, but replace the lighting with ${theme.comparison}. Change only the light and compare the mood and shadow detail.`;
+    if (id === 'day_3') return `${base} Establish these consistent visual anchors: ${theme.anchors}. After generating the first image, attach it as a reference in Gemini and request a second image of the same subject in ${theme.alternate}. Repeat those anchors and preserve the face, clothing, colours and object geometry. Compare both images for identity and detail drift.`;
+    return `${base} If you already have a matching image, attach it in Gemini and use it as your starting image. Then make two separate follow-up edits: first, ${theme.edit}; second, soften harsh shadows while keeping the original light direction. Preserve the face, outfit, pose, proportions and these visual anchors: ${theme.anchors}. Inspect the result after each edit, then request a square crop that retains the subject.`;
+  }
+  const recipes = Object.fromEntries(Object.keys(lessons).map(id => [id, {
+    scratch: { tag: '10 creative prompts', guide: 'Choose one of 10 prompts below. Edit the subject, outfit or setting to make it yours, then copy it into Gemini. Follow the comparison or editing steps one at a time.', presets: promptThemes.map(theme => ({ label: theme.label, text: themedPrompt(id, theme) })) },
+    selfie: { tag: '10 reference-photo prompts', guide: 'Choose a look below. Attach your own photo or a photo you have permission to use in Gemini, then paste the prompt. Preserve natural features; exact likeness is not guaranteed. Anyone can adapt any look.', presets: promptThemes.map(theme => ({ label: theme.label, text: 'Using my attached reference image, depict the person as the adult subject in the scene below. Preserve their recognizable facial features, natural skin tone and body proportions; do not reshape their face or body. Adapt the styling to the reference person. ' + themedPrompt(id, theme) })) }
   }]));
   function draftKey() { return 'meuseai-draft:' + (snapshot?.student_id || snapshot?.full_name || 'learner') + ':' + selected; }
   function saveDraft() {

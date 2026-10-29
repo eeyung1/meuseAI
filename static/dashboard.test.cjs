@@ -228,3 +228,23 @@ test('dashboard keeps practice controls without image uploads or gallery', () =>
  const dialog=html.indexOf('<dialog id="prompt-lab-dialog"');
  for(const id of ['gemini-studio','submission-form','reflection','submit-button'])assert.ok(html.indexOf('id="'+id+'"')>dialog);
 });
+
+test('every lesson offers ten distinct prompts in both modes, matched to its skill', async () => {
+ const goals=[/changing only the setting/,/Change only the light/,/consistent visual anchors/,/two separate follow-up edits/];
+ const all=new Set();
+ for(let day=0;day<4;day++) {
+  const h=harness(()=>{const p=profile();p.modules.forEach(m=>{if(m.id.startsWith('day_'))m.state='available';});return ok(p);});
+  await settle();h.nodes[day].listeners.click();
+  for(const mode of ['mode-scratch','mode-selfie']) {
+   h.element(mode).listeners.click();
+   const buttons=h.element('studio-chips').children;
+   assert.equal(buttons.length,10);
+   assert.equal(new Set(buttons.map(b=>b.textContent)).size,10);
+   const texts=[];
+   for(const button of buttons){button.listeners.click();const text=h.element('gemini-prompt').value;assert.match(text,goals[day]);if(mode==='mode-selfie')assert.match(text,/attached reference image.*natural skin tone/);texts.push(text);}
+   assert.equal(new Set(texts).size,10);
+   if(mode==='mode-scratch')for(const text of texts)all.add(text);
+  }
+ }
+ assert.equal(all.size,40);
+});
