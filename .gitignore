@@ -8,3 +8,8 @@ bin/
 *.db-shm
 .env
 .env.local
+
+.showcase-production/
+
+__pycache__/
+*.pyc
