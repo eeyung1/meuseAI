@@ -35,7 +35,7 @@ func (d *Dashboard) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/telemetry/stream", d.Stream)
 	mux.HandleFunc("GET /dashboard", d.Page)
 
-	for _, name := range []string{"showcase.js", "admin-showcase.js", "admin.css", "dashboard.css", "dashboard.js", "landing.css", "landing.js", "verify.js", "share.js", "admin.js"} {
+	for _, name := range []string{"admin.css", "dashboard.css", "dashboard.js", "landing.css", "landing.js", "verify.js", "share.js", "admin.js"} {
 		name := name
 		mux.HandleFunc("GET /assets/"+name, func(w http.ResponseWriter, r *http.Request) { http.ServeFileFS(w, r, assets.Assets, name) })
 	}
@@ -307,7 +307,7 @@ func dashboardEventTitle(event string) string {
 	case "social_share_submitted":
 		return "Submitted social share link for review"
 	case "social_share_approved":
-		return "Social share confirmed (+200 XP awarded!)"
+		return "Social share confirmed; reward added to your XP"
 	case "social_share_rejected":
 		return "Social share review completed"
 	case "payment_success":

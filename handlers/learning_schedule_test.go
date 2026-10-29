@@ -126,3 +126,39 @@ func TestRejectedShareCanBeCorrected(t *testing.T) {
 		t.Fatal("corrected link not saved")
 	}
 }
+
+func TestSocialShareAwards250Once(t *testing.T) {
+	for _, postgres := range []bool{false, true} {
+		t.Run(fmt.Sprint(postgres), func(t *testing.T) {
+			database, h, mux := curriculumFixture(t, postgres)
+			h.WithAuth(nil, func(*http.Request) bool { return true })
+			curriculumStudent(t, database, "share-reward", true, "day_1", "pending", time.Now())
+			var id int64
+			if err := database.QueryRow("INSERT INTO social_shares(student_id,day_number,share_url,platform,status) VALUES('share-reward',1,'https://example.com/post','social','pending') RETURNING id").Scan(&id); err != nil {
+				t.Fatal(err)
+			}
+			review := func() *httptest.ResponseRecorder {
+				r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/social-shares/review", strings.NewReader(fmt.Sprintf(`{"share_id":%d,"action":"approve"}`, id)))
+				w := httptest.NewRecorder()
+				mux.ServeHTTP(w, r)
+				return w
+			}
+			if w := review(); w.Code != 200 {
+				t.Fatal(w.Code, w.Body.String())
+			}
+			if w := review(); w.Code != 409 {
+				t.Fatal("duplicate award accepted", w.Code)
+			}
+			var xp, awarded int
+			if err := database.QueryRow("SELECT xp FROM students WHERE id='share-reward'").Scan(&xp); err != nil {
+				t.Fatal(err)
+			}
+			if err := database.QueryRow("SELECT xp_awarded FROM social_shares WHERE id=$1", id).Scan(&awarded); err != nil {
+				t.Fatal(err)
+			}
+			if xp != 250 || awarded != 250 {
+				t.Fatalf("student XP=%d, share award=%d", xp, awarded)
+			}
+		})
+	}
+}

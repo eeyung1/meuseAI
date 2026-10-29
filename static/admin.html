@@ -6,7 +6,6 @@
   <title>meuseAI · Admin Verification Portal</title>
   <link rel="stylesheet" href="/assets/landing.css">
   <link rel="stylesheet" href="/assets/admin.css">
-  <script defer src="/assets/admin-showcase.js"></script>
   <script defer src="/assets/admin.js"></script>
 </head>
 <body>
@@ -36,22 +35,7 @@
 
     <!-- Portal Content -->
     <div id="admin-portal-content" hidden>
-      <section class="action-card showcase-admin-section" aria-label="Showcase image manager">
-        <h1>Course showcase images</h1>
-        <p class="muted">Copy each prompt, generate the image in your preferred tool, then upload it here. No API key is needed. Upload, inspect the preview, and approve each image. Then click Publish approved images to display them on the dashboard. You can start with one image and add the rest later.</p>
-        <p id="showcase-admin-state">Loading gallery…</p>
-        <button id="showcase-refresh-btn" type="button" class="btn-secondary-sm">Refresh gallery</button>
-        <p id="showcase-admin-note" role="status" aria-live="polite"></p>
-        <div id="showcase-admin-grid"></div>
-        <div class="showcase-publish-controls">
-          <label><input id="showcase-rights-confirmed" type="checkbox"> I checked the usage terms of the tools used and have rights to display the approved images.</label>
-          <label for="showcase-rights-note">Terms-review note</label>
-          <textarea id="showcase-rights-note" rows="2" placeholder="Record which tools and terms you checked, and when." maxlength="1000"></textarea>
-          <button id="showcase-publish-btn" type="button" class="btn-primary-sm" disabled>Publish approved images</button>
-          <button id="showcase-unpublish-btn" type="button" class="btn-secondary-sm" disabled>Unpublish gallery</button>
-          <p class="muted">New images can be uploaded and approved while the gallery is live. Unpublish before replacing an existing image. Existing lesson progress and student submissions are unaffected.</p>
-        </div>
-      </section>
+
 
       <!-- Stat Strip -->
       <div class="admin-layout-11">
@@ -73,7 +57,7 @@
       <div class="admin-layout-17">
         <div>
           <h1 class="admin-layout-18">Social Share Verification Queue</h1>
-          <p class="muted admin-layout-19">Review student social media posts and confirm +200 XP rewards.</p>
+          <p class="muted admin-layout-19">Review student social media posts and confirm +250 XP rewards.</p>
         </div>
         <div class="admin-layout-20">
           <select id="filter-status" class="admin-layout-21">

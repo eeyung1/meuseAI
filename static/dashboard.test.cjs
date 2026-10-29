@@ -39,13 +39,13 @@ function profile() {
     leaderboard: [{ label: 'You', xp: 250, rank: 1, you: true }], activity: [{ title: '<script>not HTML</script>', at: '2026-10-28T12:00:00Z' }] };
 }
 async function settle() { for (let i = 0; i < 4; i++) await new Promise(resolve => setImmediate(resolve)); }
-function harness(handler, showcaseFactory) {
+function harness(handler) {
   const elements = new Map(), streams = [], calls = [], timers = [], windows = {};
   const element = id => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id); };
   const nodes = ['day_1', 'day_2', 'day_3', 'day_4', 'tier_1'].map(id => { const e = new Element(); e.dataset.module = id; return e; });
   const storage = new Map();
   const context = { navigator: { clipboard: { writeText: async () => {} } }, localStorage: { getItem:k=>storage.get(k), setItem:(k,v)=>storage.set(k,v), removeItem:k=>storage.delete(k) }, document: { getElementById: element, querySelectorAll: () => nodes, createElement: () => new Element(), addEventListener() {}, hidden: false },
-    window: { MeuseShowcase: showcaseFactory ? { create: showcaseFactory } : undefined, addEventListener(type, fn) { windows[type] = fn; } }, URL, location: { assign(value) { context.destination = value; } },
+    window: { addEventListener(type, fn) { windows[type] = fn; } }, URL, location: { assign(value) { context.destination = value; } },
     fetch: async (path, options) => { calls.push({ path, options }); return handler(path, options); },
     EventSource: class { constructor(path) { this.path = path; this.listeners = {}; streams.push(this); } addEventListener(type, fn) { this.listeners[type] = fn; } close() { this.closed = true; } },
     setTimeout(fn) { timers.push(fn); return timers.length; }, clearTimeout() {}, setInterval() { return 1; }, clearInterval() {} };
@@ -220,21 +220,9 @@ test('selecting a locked lesson closes the lab and prevents reopening it', async
  assert.equal(h.element('prompt-lab-dialog').hidden,true);
 });
 
-test('gallery prompt selection opens the lab with the selected prompt', async () => {
- let choose;
- const h = harness(() => ok(profile()), () => ({render(module, options) {
-   choose = () => { options.promptField.value = 'Gallery prompt'; options.onUse({prompt:'Gallery prompt',references:[]}); };
- }}));
- await settle();
- choose();
- assert.equal(h.element('prompt-lab-dialog').hidden,false);
- assert.equal(h.element('gemini-prompt').value,'Gallery prompt');
-});
-
-test('example gallery is inside the wheel card and practice controls are in the dialog', () => {
+test('dashboard keeps practice controls without image uploads or gallery', () => {
  const html=fs.readFileSync(__dirname+'/dashboard.html','utf8');
- const hub=html.indexOf('card wheel-card'),gallery=html.indexOf('id="showcase-gallery"'),inspector=html.indexOf('card inspector');
- assert.ok(hub<gallery && gallery<inspector);
+ assert.ok(!/showcase|type="file"/.test(html));
  const button=html.indexOf('id="open-prompt-lab"'),title=html.indexOf('TODAY’S LEARNING');
  assert.ok(button<title);
  const dialog=html.indexOf('<dialog id="prompt-lab-dialog"');
