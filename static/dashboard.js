@@ -497,7 +497,7 @@
   $('btn-copy-prompt')?.addEventListener('click', copyPrompt);
   $('btn-open-gemini')?.addEventListener('click', () => {
     saveDraft();
-    window.open('https://gemini.google.com/app', '_blank', 'noopener,noreferrer');
+    // Follow the real link in this tab so mobile popup blockers cannot intercept it.
   });
   for (const id of ['gemini-prompt', 'submission', 'reflection']) $(id)?.addEventListener('input', saveDraft);
   $('btn-clear-draft')?.addEventListener('click', () => {
