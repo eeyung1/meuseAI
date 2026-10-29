@@ -17,8 +17,8 @@
    try{
     const data=await (await request('/api/v1/admin/showcase')).json();if(current!==revision)return;
     const entries=data.entries||[],approved=entries.filter(e=>e.status==='approved').length;
-    $('showcase-admin-state').textContent=`${approved} / 12 approved · ${data.published?'Published':'Private drafts'}`;
-    $('showcase-publish-btn').disabled=data.published||approved!==12;$('showcase-unpublish-btn').disabled=!data.published;
+    $('showcase-admin-state').textContent=`${approved} / 12 approved · ${data.published?'Published · approved images visible on dashboard':'Private drafts · approve images, then publish to show on dashboard'}`;
+    $('showcase-publish-btn').disabled=data.published||approved===0;$('showcase-unpublish-btn').disabled=!data.published;
     const grid=$('showcase-admin-grid');
     for(const entry of entries){
      const card=element('article',null,'showcase-admin-card');card.append(element('h3',`Day ${entry.day} · ${entry.title}`),element('p',`${entry.id} · ${entry.status}`,'muted'));
@@ -33,19 +33,19 @@
       request(`/api/v1/admin/showcase/${entry.id}/image`).then(r=>r.blob()).then(blob=>{if(current!==revision)return;const url=URL.createObjectURL(blob);previewURLs.push(url);image.src=url;}).catch(error=>{if(current===revision)note(error.message);});
      }
      const source=element('select');source.setAttribute('aria-label',`Generation source for ${entry.id}`);
-     for(const name of ['Gemini','ChatGPT','Other']){const option=element('option',name);option.value=name;source.append(option);}source.value=entry.source||'Gemini';source.disabled=data.published;
-     const file=element('input');file.type='file';file.accept='image/jpeg,image/png';file.disabled=data.published;file.setAttribute('aria-label',`Upload image for ${entry.id}`);
-     const upload=element('button',entry.has_image?'Replace image':'Upload image','btn-primary-sm');upload.type='button';upload.disabled=data.published;
+     for(const name of ['Gemini','ChatGPT','Other']){const option=element('option',name);option.value=name;source.append(option);}source.value=entry.source||'Gemini';source.disabled=data.published&&entry.has_image;
+     const file=element('input');file.type='file';file.accept='image/jpeg,image/png';file.disabled=data.published&&entry.has_image;file.setAttribute('aria-label',`Upload image for ${entry.id}`);
+     const upload=element('button',entry.has_image?'Replace image':'Upload image','btn-primary-sm');upload.type='button';upload.disabled=data.published&&entry.has_image;
      upload.addEventListener('click',async()=>{
       if(busy)return;const selected=file.files?.[0];if(!selected){note('Select a JPEG or PNG first.');return;}if(selected.size>8*1024*1024){note('The image must be no larger than 8 MB.');return;}
       if(entry.has_image&&!confirm('Replace this image? Approval of this image and its dependent examples will be reset.'))return;
       busy=true;upload.disabled=true;
       try{const form=new FormData();form.append('image',selected);form.append('source',source.value);await request(`/api/v1/admin/showcase/${entry.id}/upload`,{method:'POST',body:form});note(`${entry.id} uploaded. Inspect the normalized preview, then approve it.`);await load();}catch(error){note(error.message);}finally{busy=false;upload.disabled=false;}
      });card.append(element('label','Generation source'),source,element('label','JPEG/PNG, at least 800×600, up to 8 MB and 16 megapixels. Automatically fitted to 800×600 without cropping.'),file,upload);
-     if(entry.has_image&&entry.status!=='approved'&&!data.published){
+     if(entry.has_image&&entry.status!=='approved'){
       const review=element('textarea');review.rows=2;review.placeholder='Visual review: prompt fidelity, teaching point, quality and composition';review.setAttribute('aria-label',`Visual review for ${entry.id}`);
       const rights=element('input');rights.type='checkbox';const rightsLabel=element('label','I generated this image or have permission to display it, and checked the source tool’s usage terms.');rightsLabel.prepend(rights);
-      const approve=element('button','Approve this image','btn-secondary-sm');approve.type='button';approve.addEventListener('click',async()=>{if(busy)return;if(!rights.checked||review.value.trim().length<5){note('Add your review note and confirm image rights.');return;}busy=true;approve.disabled=true;try{await request(`/api/v1/admin/showcase/${entry.id}/review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sha256:entry.sha256,note:review.value,rights_confirmed:rights.checked})});note(`${entry.id} approved.`);await load();}catch(error){note(error.message);}finally{busy=false;approve.disabled=false;}});card.append(review,rightsLabel,approve);
+      const approve=element('button','Approve this image','btn-secondary-sm');approve.type='button';approve.addEventListener('click',async()=>{if(busy)return;if(!rights.checked||review.value.trim().length<5){note('Add your review note and confirm image rights.');return;}busy=true;approve.disabled=true;try{await request(`/api/v1/admin/showcase/${entry.id}/review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sha256:entry.sha256,note:review.value,rights_confirmed:rights.checked})});note(data.published?`${entry.id} approved and visible on its lesson dashboard.`:`${entry.id} approved. Click Publish approved images to display it on the dashboard.`);await load();}catch(error){note(error.message);}finally{busy=false;approve.disabled=false;}});card.append(review,rightsLabel,approve);
      }
      grid.append(card);
     }
@@ -55,7 +55,7 @@
    if(busy)return;
    const rights=$('showcase-rights-confirmed').checked,noteValue=$('showcase-rights-note').value.trim();
    if(published&&(!rights||noteValue.length<10)){note('Confirm usage rights and add a terms-review note before publishing.');return;}
-   busy=true;try{await request('/api/v1/admin/showcase/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({published,rights_confirmed:rights,note:noteValue})});note(published?'Gallery published. Students will see it on their next refresh.':'Gallery unpublished. Drafts remain saved and can be edited.');await load();}catch(error){note(error.message);}finally{busy=false;}
+   busy=true;try{await request('/api/v1/admin/showcase/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({published,rights_confirmed:rights,note:noteValue})});note(published?'Approved images published. Students will see them on their next refresh; remaining images can be added later.':'Gallery unpublished. Drafts remain saved and can be edited.');await load();}catch(error){note(error.message);}finally{busy=false;}
   }
   $('showcase-refresh-btn')?.addEventListener('click',load);
   $('showcase-publish-btn')?.addEventListener('click',()=>publish(true));

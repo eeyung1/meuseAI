@@ -123,8 +123,15 @@ func TestManualShowcaseLifecycle(t *testing.T) {
 				t.Fatal(w.Body.String())
 			}
 			publication := `{"published":true,"rights_confirmed":true,"note":"Checked source tool terms and image rights today."}`
-			if w := showcaseRequest(mux, "POST", "/api/v1/admin/showcase/publish", publication, true); w.Code != 409 {
-				t.Fatal("incomplete gallery published")
+			if w := showcaseRequest(mux, "POST", "/api/v1/admin/showcase/publish", publication, true); w.Code != 200 {
+				t.Fatal("single approved image could not publish")
+			}
+			partial := showcaseRequest(mux, "GET", "/assets/showcase/manifest.json", "", false)
+			var partialManifest struct {
+				Entries []ShowcaseExample `json:"entries"`
+			}
+			if err := json.Unmarshal(partial.Body.Bytes(), &partialManifest); err != nil || len(partialManifest.Entries) != 1 || partialManifest.Entries[0].ID != "day1-1" {
+				t.Fatal("partial publication did not expose exactly the approved image")
 			}
 			for _, e := range s.examples[1:] {
 				h := showcaseHash(t, showcaseUpload(t, mux, e.ID, raw))
@@ -178,8 +185,11 @@ func TestManualShowcaseLifecycle(t *testing.T) {
 					t.Fatalf("reference replacement did not invalidate %s", id)
 				}
 			}
-			if w := showcaseRequest(mux, "POST", "/api/v1/admin/showcase/publish", publication, true); w.Code != 409 {
-				t.Fatal("invalidated references published")
+			if w := showcaseRequest(mux, "POST", "/api/v1/admin/showcase/publish", publication, true); w.Code != 200 {
+				t.Fatal("remaining approved images could not publish")
+			}
+			if w := showcaseRequest(mux, "GET", "/assets/showcase/day3-2.jpg", "", false); w.Code != 404 {
+				t.Fatal("invalidated reference leaked")
 			}
 		})
 	}
