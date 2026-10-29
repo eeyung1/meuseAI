@@ -51,6 +51,47 @@
 
 body:has(#prompt-lab-dialog[open]){overflow:hidden}.prompt-lab-dialog-header{position:sticky;top:-24px;z-index:1;background:var(--surface);padding:8px 0}@media(max-width:680px){.prompt-lab-dialog-header{top:-18px}}
 
+/* Mobile layout: shrink grid children and keep actions reachable. */
+.profile>*,.card>*,.studio-header>*,.share-link-form>*{min-width:0}
+.discount-banner{overflow-wrap:anywhere}
+#btn-open-gemini{display:flex;align-items:center;justify-content:center;min-height:44px;text-align:center}
+@media(max-width:680px){
+ header{padding:12px 16px;gap:12px;flex-wrap:wrap}
+ main{padding:20px 12px;gap:20px}
+ .profile{grid-template-columns:48px minmax(0,1fr);padding:16px;row-gap:4px}
+ .profile .eyebrow,.profile h2,.profile>#student-tier{grid-column:2}
+ .profile h2{overflow-wrap:anywhere}
+ .profile .avatar{grid-column:1;grid-row:1/4;align-self:center}
+ .profile-stats,.profile .discount-banner{grid-column:1/-1}
+ .profile-stats{margin-top:12px;padding-top:12px}
+ .profile .discount-banner{margin-top:12px;padding:12px;text-align:left;align-items:flex-start;font-size:12px}
+ .discount-banner .spark{flex-shrink:0}
+ .card{padding:18px;min-width:0}
+ .wheel-card .section-heading{flex-wrap:wrap;gap:8px}
+ .node{min-width:44px;min-height:44px}
+ .inspector>h2{font-size:23px;overflow-wrap:anywhere}
+ #prompt-lab-dialog{width:calc(100% - 16px);max-width:none;max-height:calc(100dvh - 16px);margin:auto;padding:16px 12px;padding-bottom:max(16px,env(safe-area-inset-bottom));border-radius:16px;scroll-padding-top:70px;-webkit-overflow-scrolling:touch}
+ .prompt-lab-dialog-header{top:-16px;align-items:center;gap:8px;padding:8px 0}
+ .prompt-lab-dialog-header h2{min-width:0;font-size:18px;overflow-wrap:anywhere}
+ .prompt-lab-dialog-header button{min-height:44px;padding:8px 10px}
+ #prompt-lab-dialog .gemini-studio-box,#prompt-lab-dialog .celebration-box{padding:12px}
+ .studio-header{flex-wrap:wrap}
+ .studio-header .micro-pill{display:block;margin:4px 0 0;width:fit-content}
+ .studio-mode-toggle{flex-direction:column}
+ .mode-pill,.secondary,.primary-accent,.share-btn{min-height:44px}
+ #prompt-lab-dialog .studio-actions{display:grid;grid-template-columns:minmax(0,1fr)}
+ #prompt-lab-dialog .studio-actions>*{width:100%;min-width:0}
+ textarea,.prompt-workbench textarea,.share-link-form input{font-size:16px}
+ #prompt-lab-dialog textarea{line-height:1.5;min-height:150px}
+ .share-link-form{grid-template-columns:minmax(0,1fr)}
+ .share-link-heading{align-items:flex-start;flex-wrap:wrap;gap:6px}
+ .share-buttons-grid{grid-template-columns:minmax(0,1fr)}
+ .share-link-form input{width:100%;min-width:0;min-height:44px}
+ #tier1-options .studio-actions{grid-template-columns:minmax(0,1fr)}
+ #tier1-options fieldset{min-width:0;margin:0}
+ .track-choice{font-size:14px}
+}
+
 #studio-chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#studio-chips .chip-btn{min-height:44px;padding:10px 12px;text-align:left;font-size:12px;white-space:normal}#studio-chips .chip-btn:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}@media(max-width:420px){#studio-chips{grid-template-columns:1fr}}
 
 #tier1-options{margin:20px 0}#tier1-options fieldset{border:1px solid var(--border);border-radius:12px;padding:14px}.track-choice{display:block;padding:12px 0;line-height:1.5}.track-choice input{width:auto;margin-right:8px}#track-total{font-weight:700;margin:16px 0}#paid-track-guide{margin-top:20px;border-top:1px solid var(--border);padding-top:20px}#paid-track-guide ol{padding-left:22px}#paid-track-guide li{margin:14px 0;line-height:1.6}#paid-track-guide a{display:block;margin-top:16px;color:var(--yellow)}
