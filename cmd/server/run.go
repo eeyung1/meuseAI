@@ -85,12 +85,20 @@ func ConfigFromEnv() (Config, error) {
 	if dry {
 		config.Mailer = &services.DryRunMailer{}
 		config.Logger.Print("dry-run email enabled; delivery is captured in memory only")
+	} else if brevoKey := os.Getenv("BREVO_API_KEY"); brevoKey != "" {
+		mailer, err := NewBrevoMailer(brevoKey, os.Getenv("MEUSEAI_EMAIL_FROM"), nil)
+		if err != nil {
+			return config, err
+		}
+		config.Mailer = mailer
+		config.Logger.Print("Brevo transactional email mailer enabled")
 	} else {
 		mailer, err := NewResendMailer(os.Getenv("RESEND_API_KEY"), os.Getenv("MEUSEAI_EMAIL_FROM"), nil)
 		if err != nil {
 			return config, err
 		}
 		config.Mailer = mailer
+		config.Logger.Print("Resend transactional email mailer enabled")
 	}
 	return config, nil
 }

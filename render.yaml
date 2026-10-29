@@ -19,5 +19,7 @@ services:
         sync: false
       - key: RESEND_API_KEY
         sync: false
+      - key: BREVO_API_KEY
+        sync: false
       - key: MEUSEAI_EMAIL_FROM
         value: onboarding@meuseai.com

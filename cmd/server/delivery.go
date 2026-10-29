@@ -79,6 +79,90 @@ func (m *ResendMailer) Send(ctx context.Context, message services.Message) error
 	return nil
 }
 
+// BrevoMailer delivers transactional messages through Brevo (formerly Sendinblue) v3 API.
+type BrevoMailer struct {
+	key, fromName, fromEmail string
+	client                   *http.Client
+}
+
+func NewBrevoMailer(key, from string, client *http.Client) (*BrevoMailer, error) {
+	if strings.TrimSpace(key) == "" || strings.ContainsAny(key, "\r\n") {
+		return nil, errors.New("Brevo key required")
+	}
+	addr, err := mail.ParseAddress(from)
+	if err != nil || strings.ContainsAny(from, "\r\n") {
+		return nil, errors.New("valid sender required")
+	}
+	fromName := addr.Name
+	if fromName == "" {
+		fromName = "meuseAI"
+	}
+	c := http.Client{Timeout: 10 * time.Second}
+	if client != nil {
+		c = *client
+		if c.Timeout <= 0 || c.Timeout > 10*time.Second {
+			c.Timeout = 10 * time.Second
+		}
+	}
+	c.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	return &BrevoMailer{
+		key:       strings.TrimSpace(key),
+		fromName:  fromName,
+		fromEmail: addr.Address,
+		client:    &c,
+	}, nil
+}
+
+func (m *BrevoMailer) Send(ctx context.Context, message services.Message) error {
+	headers := map[string]string{}
+	if message.UnsubscribeURL != "" {
+		headers["List-Unsubscribe"] = "<" + message.UnsubscribeURL + ">"
+		headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+	}
+	payload := map[string]any{
+		"sender": map[string]string{
+			"name":  m.fromName,
+			"email": m.fromEmail,
+		},
+		"to": []map[string]string{
+			{"email": message.To},
+		},
+		"subject":     message.Subject,
+		"textContent": message.Text,
+	}
+	if len(headers) > 0 {
+		payload["headers"] = headers
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return errors.New("email encoding failed")
+	}
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.brevo.com/v3/smtp/email", bytes.NewReader(body))
+	if err != nil {
+		return errors.New("email unavailable")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("api-key", m.key)
+
+	response, err := m.client.Do(req)
+	if err != nil {
+		return errors.New("email provider unavailable")
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return errors.New("email provider rejected message")
+	}
+	raw, err := io.ReadAll(io.LimitReader(response.Body, 64<<10))
+	var result struct {
+		MessageID string `json:"messageId"`
+	}
+	if err != nil || json.Unmarshal(raw, &result) != nil || result.MessageID == "" {
+		return errors.New("invalid email provider response")
+	}
+	return nil
+}
+
 // ProvisionOnce delivers configured Tier 1 access for pending durable events.
 // Completion is recorded only after delivery; Resend receives a stable idempotency
 // key so crash/retry does not resend within the provider's idempotency window.

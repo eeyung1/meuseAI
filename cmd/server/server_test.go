@@ -104,6 +104,40 @@ func TestResendAdapterAndIdempotency(t *testing.T) {
 		t.Fatal("provider error leaked")
 	}
 }
+func TestBrevoAdapter(t *testing.T) {
+	client := &http.Client{Transport: transportFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.String() != "https://api.brevo.com/v3/smtp/email" || r.Header.Get("api-key") != "brevo-test-key" {
+			t.Fatal("brevo request header mismatch")
+		}
+		raw, _ := io.ReadAll(r.Body)
+		for _, value := range []string{"List-Unsubscribe", "One-Click", "student@example.com", "meuseAI"} {
+			if !strings.Contains(string(raw), value) {
+				t.Fatalf("missing email fields in body: %s", string(raw))
+			}
+		}
+		return &http.Response{StatusCode: 201, Body: io.NopCloser(strings.NewReader(`{"messageId":"<test-msg-id>"}`)), Header: make(http.Header)}, nil
+	})}
+	mailer, err := NewBrevoMailer("brevo-test-key", "meuseAI <hello@example.com>", client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	if err = mailer.Send(ctx, services.Message{To: "student@example.com", Subject: "Welcome", Text: "Hello", UnsubscribeURL: "https://example.com/unsubscribe"}); err != nil {
+		t.Fatal(err)
+	}
+	// Test validation
+	if _, err = NewBrevoMailer("", "hello@example.com", client); err == nil {
+		t.Fatal("empty key accepted")
+	}
+	if _, err = NewBrevoMailer("key", "invalid-email", client); err == nil {
+		t.Fatal("invalid email accepted")
+	}
+	client.Transport = transportFunc(func(*http.Request) (*http.Response, error) { return nil, errors.New("secret transport error") })
+	failing, _ := NewBrevoMailer("brevo-test-key", "hello@example.com", client)
+	if err = failing.Send(ctx, services.Message{}); err == nil || strings.Contains(err.Error(), "secret") {
+		t.Fatal("provider error leaked")
+	}
+}
 func TestProvisionFailureRemainsPending(t *testing.T) {
 	config := testConfig()
 	a, err := New(context.Background(), config)
