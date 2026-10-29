@@ -127,6 +127,11 @@ func New(ctx context.Context, config Config) (*App, error) {
 	curriculum.Register(mux)
 	payment.Register(mux)
 	a.dashboard.Register(mux)
+	showcase, err := handlers.NewShowcase(database, a.admin)
+	if err != nil {
+		return nil, err
+	}
+	showcase.Register(mux)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), time.Second)
 		defer cancel()

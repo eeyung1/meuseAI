@@ -2,12 +2,12 @@
 (function (host) {
   'use strict';
   function create({ root, document, fetch, confirm }) {
-    let manifestPromise, revision = 0, renderedDay = null;
+    let manifestPromise, revision = 0, renderedDay = null, fetchedAt = 0;
     const safeImage = value => /^\/assets\/showcase\/day[1-4]-[1-3]\.(jpg|webp)$/.test(value);
     function manifest() {
-      if (!manifestPromise) manifestPromise = fetch('/assets/showcase/manifest.json', { cache: 'no-store' })
+      if (!manifestPromise || Date.now()-fetchedAt>15000) { fetchedAt=Date.now(); manifestPromise = fetch('/assets/showcase/manifest.json', { cache: 'no-store' })
         .then(response => { if (!response.ok) throw new Error('Gallery unavailable'); return response.json(); })
-        .catch(() => null);
+        .catch(() => null); }
       return manifestPromise;
     }
     async function render(module, { promptField, onUse }) {
@@ -18,15 +18,16 @@
       }
       const data = await manifest();
       if (current !== revision) return;
-      if (!data || data.published !== true || !Array.isArray(data.entries)) { root.hidden = true; return; }
+      if (!data || data.published !== true || !Array.isArray(data.entries)) { root.hidden = true; renderedDay=null; return; }
       const day = Number(module.id.slice(4));
       const examples = data.entries.filter(item => item.day === day);
       if (examples.length !== 3 || examples.some(item => item.status !== 'approved' || !safeImage(item.image) || typeof item.prompt !== 'string')) {
         root.hidden = true; return;
       }
       root.hidden = false;
-      if (renderedDay === day) return;
-      renderedDay = day;
+      const renderKey=day+':'+examples.map(item=>item.sha256||item.image).join(',');
+      if (renderedDay === renderKey) return;
+      renderedDay = renderKey;
       const heading = document.createElement('h3'); heading.textContent = 'Today’s Inspiration';
       const label = document.createElement('p'); label.className = 'muted small';
       label.textContent = 'AI-generated course examples. Compare the choices, then make your own. These are curated examples, not student work or guaranteed results.';
