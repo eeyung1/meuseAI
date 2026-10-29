@@ -262,3 +262,12 @@ test('owned tracks expose guides and cannot be selected for repurchase',async()=
  const h=harness(()=>{const p=profile();p.tier1_video=true;p.modules[4].state='unlocked';return ok(p);});await settle();h.nodes[4].listeners.click();
  assert.equal(h.element('open-video-track').hidden,false);assert.equal(h.element('open-landing-track').hidden,true);assert.equal(h.element('track-video').disabled,true);assert.equal(h.element('track-landing').disabled,false);
 });
+
+
+test('Gemini uses native same-tab navigation and saves the current prompt first',async()=>{
+ const html=fs.readFileSync(__dirname+'/dashboard.html','utf8');
+ assert.match(html,/<a id="btn-open-gemini"[^>]*href="https:\/\/gemini.google.com\/app"[^>]*target="_self"/);
+ const source=fs.readFileSync(__dirname+'/dashboard.js','utf8');assert.ok(!source.includes("window.open('https://gemini.google.com"));
+ const h=harness(()=>ok(profile()));await settle();h.element('gemini-prompt').value='My phone prompt';
+ h.element('btn-open-gemini').listeners.click();h.nodes[0].listeners.click();h.nodes[1].listeners.click();assert.equal(h.element('gemini-prompt').value,'My phone prompt');
+});
