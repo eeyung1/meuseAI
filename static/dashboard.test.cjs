@@ -248,3 +248,17 @@ test('every lesson offers ten distinct prompts in both modes, matched to its ski
  }
  assert.equal(all.size,40);
 });
+
+test('track selection totals and checkout reflect only selected tracks',async()=>{
+ let payload;
+ const h=harness((path,options)=>{if(path.includes('/checkout')){payload=JSON.parse(options.body);return ok({authorization_url:'https://checkout.paystack.com/selected'});}const p=profile();p.modules[4].state='available';return ok(p);});await settle();h.nodes[4].listeners.click();
+ h.element('track-video').checked=true;h.element('track-video').listeners.change();assert.match(h.element('track-total').textContent,/10,000/);
+ await h.element('checkout-button').listeners.click();assert.equal(payload.tracks.length,2);
+ h.element('track-landing').checked=false;h.element('track-landing').listeners.change();assert.match(h.element('track-total').textContent,/5,000/);
+ await h.element('checkout-button').listeners.click();assert.deepEqual(payload.tracks,['video']);
+ h.element('track-video').checked=false;h.element('track-video').listeners.change();assert.equal(h.element('checkout-button').disabled,true);
+});
+test('owned tracks expose guides and cannot be selected for repurchase',async()=>{
+ const h=harness(()=>{const p=profile();p.tier1_video=true;p.modules[4].state='unlocked';return ok(p);});await settle();h.nodes[4].listeners.click();
+ assert.equal(h.element('open-video-track').hidden,false);assert.equal(h.element('open-landing-track').hidden,true);assert.equal(h.element('track-video').disabled,true);assert.equal(h.element('track-landing').disabled,false);
+});

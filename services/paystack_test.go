@@ -123,3 +123,15 @@ func TestPaystackSignature(t *testing.T) {
 		t.Fatal("body tampering accepted")
 	}
 }
+
+func TestTrackAmounts(t *testing.T) {
+	for _, item := range []struct {
+		amount int64
+		tracks string
+		valid  bool
+	}{{500000, "video", true}, {450000, "video", true}, {1000000, "landing_pages,video", true}, {900000, "landing_pages,video", true}, {500000, "landing_pages,video", false}, {900000, "video", false}, {1000000, "video,video", false}, {500000, "unknown", false}} {
+		if got := ValidTrackAmount(item.amount, item.tracks); got != item.valid {
+			t.Fatalf("%d %s: %v", item.amount, item.tracks, got)
+		}
+	}
+}

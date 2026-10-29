@@ -309,3 +309,80 @@ func TestPaymentProviderFailureAndConfiguration(t *testing.T) {
 		t.Fatal("admin authorization defaults open")
 	}
 }
+
+func TestTier1TrackPurchases(t *testing.T) {
+	for _, postgres := range []bool{false, true} {
+		for _, selection := range []string{"video", "landing_pages", "landing_pages,video"} {
+			t.Run(fmt.Sprint(postgres)+selection, func(t *testing.T) {
+				d, _, mux := paymentFixture(t, postgres)
+				tracks := strings.Split(selection, ",")
+				raw, _ := json.Marshal(map[string]any{"tier": "tier_1", "tracks": tracks})
+				w := paymentRequest(mux, "/api/v1/payments/checkout", string(raw), nil)
+				if w.Code != 200 {
+					t.Fatal(w.Code, w.Body.String())
+				}
+				var result services.Checkout
+				if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+					t.Fatal(err)
+				}
+				amount := int64(500000 * len(tracks))
+				var stored int64
+				var selected string
+				if err := d.QueryRow("SELECT amount_kobo,tracks FROM payments WHERE reference=$1", result.Reference).Scan(&stored, &selected); err != nil || stored != amount || selected != selection {
+					t.Fatal("wrong checkout", stored, selected, err)
+				}
+				var landing, video bool
+				_ = d.QueryRow("SELECT tier1_landing,tier1_video FROM students WHERE id='s1'").Scan(&landing, &video)
+				if landing || video {
+					t.Fatal("pending purchase unlocked access")
+				}
+				if w := paymentWebhook(mux, paymentEvent(result.Reference, amount-1)); w.Code != 400 {
+					t.Fatal("incorrect charge accepted")
+				}
+				for i := 0; i < 2; i++ {
+					if w := paymentWebhook(mux, paymentEvent(result.Reference, amount)); w.Code != 200 {
+						t.Fatal(w.Body.String())
+					}
+				}
+				_ = d.QueryRow("SELECT tier1_landing,tier1_video FROM students WHERE id='s1'").Scan(&landing, &video)
+				if landing != strings.Contains(selection, "landing_pages") || video != strings.Contains(selection, "video") {
+					t.Fatal("wrong entitlements", landing, video)
+				}
+				if w := paymentRequest(mux, "/api/v1/payments/checkout", string(raw), nil); w.Code != 409 {
+					t.Fatal("owned track charged again", w.Code)
+				}
+				paymentAssertCount(t, d, "lovable_provisioning_requested", 1)
+			})
+		}
+	}
+}
+func TestTrackSelectionValidationAndUpgrade(t *testing.T) {
+	d, _, mux := paymentFixture(t, false)
+	for _, tracks := range []string{`[]`, `["unknown"]`, `["video","video"]`, `["video","landing_pages","video"]`} {
+		if w := paymentRequest(mux, "/api/v1/payments/checkout", `{"tracks":`+tracks+`}`, nil); w.Code != 400 {
+			t.Fatal("invalid tracks accepted", w.Code)
+		}
+	}
+	if _, err := d.Exec("UPDATE students SET xp=1000,tier1_landing=TRUE,funnel_tier='tier_1_active'"); err != nil {
+		t.Fatal(err)
+	}
+	w := paymentRequest(mux, "/api/v1/payments/checkout", `{"tracks":["video"]}`, nil)
+	if w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	var result services.Checkout
+	_ = json.Unmarshal(w.Body.Bytes(), &result)
+	var amount int64
+	_ = d.QueryRow("SELECT amount_kobo FROM payments WHERE reference=$1", result.Reference).Scan(&amount)
+	if amount != 450000 {
+		t.Fatal("missing per-track discount", amount)
+	}
+	if w := paymentWebhook(mux, paymentEvent(result.Reference, amount)); w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	var landing, video bool
+	_ = d.QueryRow("SELECT tier1_landing,tier1_video FROM students WHERE id='s1'").Scan(&landing, &video)
+	if !landing || !video {
+		t.Fatal("upgrade lost access")
+	}
+}

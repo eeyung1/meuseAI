@@ -88,7 +88,7 @@ func (p *Paystack) Initialize(ctx context.Context, input CheckoutRequest) (Check
 		return zero, errors.New("invalid checkout request")
 	}
 	expected, err := TierAmount(input.Metadata["tier"])
-	if err != nil || (input.Amount != expected && !(input.Metadata["tier"] == "tier_1" && ValidTier1Amount(input.Amount))) || input.Metadata["student_id"] == "" {
+	if err != nil || ((input.Metadata["tier"] != "tier_1" && input.Amount != expected) || (input.Metadata["tier"] == "tier_1" && !ValidTrackAmount(input.Amount, input.Metadata["tracks"]))) || input.Metadata["student_id"] == "" {
 		return zero, errors.New("invalid checkout price or owner")
 	}
 	// The public API documents metadata as a stringified JSON object.

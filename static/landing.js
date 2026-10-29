@@ -3,6 +3,14 @@
 
   const $ = id => document.getElementById(id);
 
+  function previewTracks(){
+    const count=Number(!!$('preview-landing')?.checked)+Number(!!$('preview-video')?.checked);
+    if($('preview-track-total'))$('preview-track-total').textContent=count?`${count} track${count>1?'s':''}: ₦${(5000*count).toLocaleString()} · With earned 10% XP discount: ₦${(4500*count).toLocaleString()}`:'Select one or both tracks to see tuition.';
+  }
+  $('preview-landing')?.addEventListener('change',previewTracks);
+  $('preview-video')?.addEventListener('change',previewTracks);
+  previewTracks();
+
   function setFeedback(message, type = '') {
     const el = $('form-feedback');
     if (!el) return;

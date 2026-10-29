@@ -52,3 +52,5 @@
 body:has(#prompt-lab-dialog[open]){overflow:hidden}.prompt-lab-dialog-header{position:sticky;top:-24px;z-index:1;background:var(--surface);padding:8px 0}@media(max-width:680px){.prompt-lab-dialog-header{top:-18px}}
 
 #studio-chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#studio-chips .chip-btn{min-height:44px;padding:10px 12px;text-align:left;font-size:12px;white-space:normal}#studio-chips .chip-btn:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}@media(max-width:420px){#studio-chips{grid-template-columns:1fr}}
+
+#tier1-options{margin:20px 0}#tier1-options fieldset{border:1px solid var(--border);border-radius:12px;padding:14px}.track-choice{display:block;padding:12px 0;line-height:1.5}.track-choice input{width:auto;margin-right:8px}#track-total{font-weight:700;margin:16px 0}#paid-track-guide{margin-top:20px;border-top:1px solid var(--border);padding-top:20px}#paid-track-guide ol{padding-left:22px}#paid-track-guide li{margin:14px 0;line-height:1.6}#paid-track-guide a{display:block;margin-top:16px;color:var(--yellow)}

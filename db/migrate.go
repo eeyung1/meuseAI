@@ -32,6 +32,12 @@ var postgresSchemaV4 string
 //go:embed schema_v4.sqlite
 var sqliteSchemaV4 string
 
+//go:embed schema_v5.sql
+var postgresSchemaV5 string
+
+//go:embed schema_v5.sqlite
+var sqliteSchemaV5 string
+
 type migration struct {
 	version int
 	body    string
@@ -41,18 +47,20 @@ type migration struct {
 // already-applied versions from accidental edits. Append a new version to evolve
 // a deployed schema; never edit an applied migration.
 func (db *DB) Migrate(ctx context.Context) error {
-	var bodyV1, bodyV2, bodyV3, bodyV4 string
+	var bodyV1, bodyV2, bodyV3, bodyV4, bodyV5 string
 	switch db.Dialect {
 	case Postgres:
 		bodyV1 = postgresSchema
 		bodyV2 = postgresSchemaV2
 		bodyV3 = postgresSchemaV3
 		bodyV4 = postgresSchemaV4
+		bodyV5 = postgresSchemaV5
 	case SQLite:
 		bodyV1 = sqliteSchema
 		bodyV2 = sqliteSchemaV2
 		bodyV3 = sqliteSchemaV3
 		bodyV4 = sqliteSchemaV4
+		bodyV5 = sqliteSchemaV5
 	default:
 		return fmt.Errorf("unsupported migration dialect %q", db.Dialect)
 	}
@@ -61,6 +69,7 @@ func (db *DB) Migrate(ctx context.Context) error {
 		{version: 2, body: bodyV2},
 		{version: 3, body: bodyV3},
 		{version: 4, body: bodyV4},
+		{version: 5, body: bodyV5},
 	})
 }
 

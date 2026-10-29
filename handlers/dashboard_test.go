@@ -279,3 +279,26 @@ func TestRemovedShowcaseRoutes(t *testing.T) {
 		}
 	}
 }
+
+func TestPaidTrackContentIsEntitlementGated(t *testing.T) {
+	for _, postgres := range []bool{false, true} {
+		t.Run(fmt.Sprint(postgres), func(t *testing.T) {
+			database, _, mux := dashboardFixture(t, postgres)
+			if w := dashboardGet(mux, "/api/v1/tier-1/video"); w.Code != 403 {
+				t.Fatal("unowned video exposed", w.Code)
+			}
+			if _, err := database.Exec("UPDATE students SET tier1_video=TRUE WHERE id='a'"); err != nil {
+				t.Fatal(err)
+			}
+			if w := dashboardGet(mux, "/api/v1/tier-1/video"); w.Code != 200 || !strings.Contains(w.Body.String(), "CapCut") {
+				t.Fatal("purchased guide missing", w.Code, w.Body.String())
+			}
+			if w := dashboardGet(mux, "/api/v1/tier-1/landing_pages"); w.Code != 403 {
+				t.Fatal("video purchase exposed landing guide")
+			}
+			if w := dashboardGet(mux, "/api/v1/tier-1/unknown"); w.Code != 404 {
+				t.Fatal("unknown track accepted")
+			}
+		})
+	}
+}

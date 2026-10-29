@@ -780,3 +780,5 @@ footer {
 
 
 .creation-walkthrough{max-width:720px;margin:28px auto;padding:24px;text-align:left;border:1px solid var(--border);border-radius:16px}.creation-walkthrough h2{font-size:22px;margin-bottom:16px}.creation-walkthrough ol{padding-left:22px}.creation-walkthrough li{margin:12px 0;line-height:1.6}.creation-walkthrough p{font-size:13px;line-height:1.6;margin-top:16px}
+
+.tier-track-picker{border:1px solid var(--border);border-radius:10px;padding:12px;margin:16px 0}.tier-track-picker label{display:block;margin:12px 0;font-size:14px;line-height:1.5}.tier-track-picker input{margin-right:8px}.tier-box .price small{font-size:14px}.tier-box a{color:var(--yellow)}#preview-track-total{font-weight:700;margin:16px 0}

@@ -1,5 +1,8 @@
 # meuseAI: Complete Student Journey & Automation Blueprint (v2)
 
+> **Current Tier 1 policy (2026-10-29):** Learners choose Lovable landing pages, AI video generation with CapCut, or both. Each track costs ₦5,000; both cost ₦10,000. The earned 10% XP discount makes these ₦4,500/₦9,000. Only purchased tracks unlock, and the other track can be bought later. External subscriptions/AI credits are separate. This supersedes the original single-track Tier 1 descriptions below; see `cmd/server/README.md` for the implemented API, entitlement and migration details.
+
+
 **Implemented pacing policy:** Verification starts the course clock. Day 1 is immediate. Days 2, 3 and 4 require prior completion and open at 24, 48 and 72 hours respectively. Later profile edits do not reset this clock. The server, dashboard and email dispatcher enforce this policy. Completing a lesson early does not unlock the next lesson early. Late completion does not impose a new 24-hour delay. Completed lessons remain available for practice. Inactivity-paused students can explicitly resume; unsubscribed students are not silently resubscribed.
 
 Changes from v1 are marked inline as **[CHANGED]** or **[NEW]**, with a

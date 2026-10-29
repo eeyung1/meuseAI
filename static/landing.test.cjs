@@ -181,3 +181,10 @@ test('resend verification trigger posts to /api/v1/students/resend-verification'
   assert.equal(resendEmail, 'ada@example.com');
   assert.match(feedback.textContent, /fresh verification link/i);
 });
+
+test('landing page explains additive track pricing and previews both selections',()=>{
+ const h=harness(()=>({ok:true,status:200,json:async()=>({})}));
+ h.element('preview-landing').checked=true;h.element('preview-video').checked=true;h.element('preview-video').listeners.change();assert.match(h.element('preview-track-total').textContent,/10,000.*9,000/);
+ h.element('preview-landing').checked=false;h.element('preview-landing').listeners.change();assert.match(h.element('preview-track-total').textContent,/5,000.*4,500/);
+ const html=fs.readFileSync(__dirname+'/landing.html','utf8');assert.match(html,/Only the tracks you purchase unlock/);assert.match(html,/credits.*separate/);
+});
