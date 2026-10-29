@@ -495,9 +495,22 @@
     }
   }
   $('btn-copy-prompt')?.addEventListener('click', copyPrompt);
-  $('btn-open-gemini')?.addEventListener('click', () => {
+  for (const id of ['btn-open-gemini','gemini-same-tab']) $(id)?.addEventListener('click', () => {
     saveDraft();
-    // Follow the real link in this tab so mobile popup blockers cannot intercept it.
+    // Keep native user-initiated navigation; do not create or close popup windows.
+    const status=$('gemini-launch-status');
+    if(status){status.hidden=false;status.textContent='Paste your copied prompt in Gemini. If it did not open, use the other opening option or copy the website link below.';}
+  });
+  $('copy-gemini-link')?.addEventListener('click', async () => {
+    saveDraft();
+    const status=$('gemini-launch-status');status.hidden=false;
+    try {
+      await navigator.clipboard.writeText('https://gemini.google.com/');
+      status.textContent='Website link copied. Paste it into Chrome or Safari’s address bar. This replaces the clipboard contents; copy your prompt again before generating.';
+    } catch (_) {
+      $('gemini-web-address').focus();$('gemini-web-address').select();
+      status.textContent='Select and copy the website address manually, then open it in Chrome or Safari.';
+    }
   });
   for (const id of ['gemini-prompt', 'submission', 'reflection']) $(id)?.addEventListener('input', saveDraft);
   $('btn-clear-draft')?.addEventListener('click', () => {
