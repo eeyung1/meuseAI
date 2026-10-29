@@ -1,5 +1,7 @@
 # meuseAI — Automated Student Journey & High-Concurrency Learning Funnel
 
+> **Current implementation (four-day learning update):** Go `net/http`, custom CSS and vanilla JavaScript power the connected `/dashboard`. Day 1 opens at verification; Days 2–4 require the previous completion and open at +24/+48/+72 hours. Late learners can catch up without an extra waiting period. Completed lessons remain accessible, prompts/reflections are saved as work, and browser drafts can be cleared on shared devices. Gemini is an external copy-and-paste workflow, not an embedded generator or automatic prompt injection. A completed course earns 1,000 XP and a 10% Tier 1 discount (₦4,500); optional approved shares earn 200 XP each and are not required for that discount. The sections below include longer-term product plans; see `cmd/server/README.md` for runtime behavior.
+
 > **meuseAI** is an automated AI education and conversion engine. It guides learners from public acquisition through a free 4-day generative AI curriculum, measures real completion signals, and autonomously converts engaged students into paying tiers via localized payment gateways.
 
 ---

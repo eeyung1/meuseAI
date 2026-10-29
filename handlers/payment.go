@@ -128,7 +128,7 @@ func (p *Payment) Checkout(w http.ResponseWriter, r *http.Request) {
 		if eligible {
 			var studentXP int
 			_ = tx.QueryRowContext(r.Context(), "SELECT xp FROM students WHERE id=$1", id).Scan(&studentXP)
-			discountPercent := (studentXP / 2000) * 10
+			discountPercent := services.Tier1DiscountPercent(studentXP)
 			if discountPercent > 50 {
 				discountPercent = 50
 			}
@@ -239,7 +239,7 @@ func (p *Payment) Webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	expected, err := services.TierAmount(tier)
-	if err != nil || amount != expected || amount != data.Amount || currency != services.PaystackCurrency || data.Currency != currency || !strings.EqualFold(email, data.Customer.Email) {
+	if err != nil || (tier != "tier_1" && amount != expected) || (tier == "tier_1" && !services.ValidTier1Amount(amount)) || amount != data.Amount || currency != services.PaystackCurrency || data.Currency != currency || !strings.EqualFold(email, data.Customer.Email) {
 		paymentError(w, 400, "payment does not match checkout")
 		return
 	}

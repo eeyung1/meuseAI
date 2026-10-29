@@ -74,3 +74,13 @@ bounded conversion sales scheduling remain separate features; this bootstrap
 wires the existing Tier 2 readiness/payment guard, not new curriculum content.
 Local sandbox validation uses in-memory HTTP transports because listening sockets
 are unavailable; no production listen/signal smoke test is claimed.
+
+## Four-day learning experience
+
+Migration 3 adds `curriculum_started_at` and `student_progress.delivered_at`. Verification sets the explicit course clock. Existing verified users without an explicit clock retain their consent timestamp as the fallback, so migration does not reset their progress. PostgreSQL and SQLite use append-only migrations; do not edit applied schemas.
+
+Lessons release at verification + 0/24/48/72 hours and still require previous completion. The completion API rejects early access with 403 and `unlocks_at`; the dashboard uses `scheduled` and a local release date. Drip delivery cannot bypass the gate. Inactivity reminders use the persisted delivery time instead of unrelated profile changes. Authenticated `POST /api/v1/curriculum/resume` reopens a paused lesson's reminder window without granting XP or overriding unsubscribe.
+
+The Prompt Lab teaches short, sequential experiments, uses gender-neutral optional photo references, and provides separate Copy and Open Gemini actions. Clipboard failure offers manual selection. Prompt, submission and reflection drafts are stored per student/module in localStorage; do not enter sensitive information on shared devices. Submitted work is returned only in the authenticated student's own module snapshot. No image upload, automated quality grading, or Gemini API integration is claimed.
+
+Tier 1 uses a shared 1,000-XP/10% policy. Checkout stores its agreed amount; webhooks validate the signed amount against that record, including if XP changes later. Existing full-price pending checkouts remain valid. Rejected social-share links can be corrected and resubmitted; PostgreSQL review locks prevent double awards.

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/eeyung1/meuseAI/db"
+	"github.com/eeyung1/meuseAI/services"
 	assets "github.com/eeyung1/meuseAI/static"
 	"github.com/eeyung1/meuseAI/telemetry"
 )
@@ -47,12 +48,14 @@ func (d *Dashboard) Page(w http.ResponseWriter, r *http.Request) {
 }
 
 type DashboardModule struct {
-	ID           string `json:"id"`
-	Title        string `json:"title"`
-	Description  string `json:"description"`
-	State        string `json:"state"`
-	XP           int    `json:"xp"`
-	Prerequisite string `json:"prerequisite"`
+	ID           string    `json:"id"`
+	Title        string    `json:"title"`
+	Description  string    `json:"description"`
+	State        string    `json:"state"`
+	XP           int       `json:"xp"`
+	Prerequisite string    `json:"prerequisite"`
+	UnlocksAt    time.Time `json:"unlocks_at"`
+	Submission   string    `json:"submission,omitempty"`
 }
 type DashboardPeer struct {
 	Label string `json:"label"`
@@ -73,6 +76,7 @@ type DashboardShare struct {
 	XPAwarded int    `json:"xp_awarded"`
 }
 type DashboardSnapshot struct {
+	StudentID       string              `json:"student_id"`
 	Name            string              `json:"full_name"`
 	XP              int                 `json:"xp"`
 	Streak          int                 `json:"streak_days"`
@@ -139,7 +143,7 @@ func (d *Dashboard) Stream(w http.ResponseWriter, r *http.Request) {
 	d.hub.Serve(w, r, id)
 }
 func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot, error) {
-	result := DashboardSnapshot{Modules: []DashboardModule{}, Leaderboard: []DashboardPeer{}, Activity: []DashboardActivity{}, SocialShares: []DashboardShare{}}
+	result := DashboardSnapshot{StudentID: id, Modules: []DashboardModule{}, Leaderboard: []DashboardPeer{}, Activity: []DashboardActivity{}, SocialShares: []DashboardShare{}}
 	tx, err := d.database.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true})
 	if err != nil {
 		return result, err
@@ -164,20 +168,31 @@ func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot,
 		sRows.Close()
 	}
 
+	var started time.Time
+	var explicitStart sql.NullTime
+	if err := tx.QueryRowContext(ctx, "SELECT curriculum_started_at,consent_timestamp FROM students WHERE id=$1", id).Scan(&explicitStart, &started); err != nil {
+		return result, err
+	}
+	if explicitStart.Valid {
+		started = explicitStart.Time
+	}
+	var submissions [4]string
 	var completed [4]bool
-	rows, err := tx.QueryContext(ctx, "SELECT day_number,completed FROM student_progress WHERE student_id=$1", id)
+	rows, err := tx.QueryContext(ctx, "SELECT day_number,completed,COALESCE(submission_payload,'') FROM student_progress WHERE student_id=$1", id)
 	if err != nil {
 		return result, err
 	}
 	for rows.Next() {
 		var day int
 		var done bool
-		if err = rows.Scan(&day, &done); err != nil {
+		var submission string
+		if err = rows.Scan(&day, &done, &submission); err != nil {
 			rows.Close()
 			return result, err
 		}
 		if day >= 1 && day <= 4 {
 			completed[day-1] = done
+			submissions[day-1] = submission
 		}
 	}
 	err = rows.Err()
@@ -195,12 +210,15 @@ func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot,
 			state = "completed"
 		} else if active && previous && result.Stage == fmt.Sprintf("day_%d", i+1) {
 			state = "available"
+			if time.Now().UTC().Before(started.Add(time.Duration(i) * 24 * time.Hour)) {
+				state = "scheduled"
+			}
 		}
 		prerequisite := "Verify your email"
 		if i > 0 {
 			prerequisite = fmt.Sprintf("Complete Day %d", i)
 		}
-		result.Modules = append(result.Modules, DashboardModule{ID: fmt.Sprintf("day_%d", i+1), Title: titles[i], Description: descriptions[i], State: state, XP: 250, Prerequisite: prerequisite})
+		result.Modules = append(result.Modules, DashboardModule{ID: fmt.Sprintf("day_%d", i+1), Title: titles[i], Description: descriptions[i], State: state, XP: 250, Prerequisite: prerequisite, UnlocksAt: started.Add(time.Duration(i) * 24 * time.Hour), Submission: submissions[i]})
 		previous = previous && completed[i]
 	}
 	tierState := "locked"
@@ -210,7 +228,7 @@ func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot,
 		tierState = "available"
 	}
 
-	discountPercent := (result.XP / 2000) * 10
+	discountPercent := services.Tier1DiscountPercent(result.XP)
 	if discountPercent > 50 {
 		discountPercent = 50
 	}
@@ -222,7 +240,7 @@ func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot,
 	if discountPercent > 0 {
 		tierDesc = fmt.Sprintf("Turn your next idea into a live landing page. Tier 1: ₦%d (%d%% XP discount applied from ₦5,000!)", result.Tier1PriceNaira, discountPercent)
 	} else {
-		xpNeeded := 2000 - (result.XP % 2000)
+		xpNeeded := 1000 - result.XP
 		tierDesc = fmt.Sprintf("Turn your next idea into a live landing page. Tier 1 access: ₦5,000. (Earn %d more XP for 10%% off!)", xpNeeded)
 	}
 	result.Modules = append(result.Modules, DashboardModule{ID: "tier_1", Title: "Lovable landing pages", Description: tierDesc, State: tierState, Prerequisite: "Complete all four days"})

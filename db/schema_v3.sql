@@ -1,0 +1,3 @@
+-- Version 3: explicit course clock, independent of profile activity.
+ALTER TABLE students ADD COLUMN curriculum_started_at TIMESTAMPTZ;
+ALTER TABLE student_progress ADD COLUMN delivered_at TIMESTAMPTZ;

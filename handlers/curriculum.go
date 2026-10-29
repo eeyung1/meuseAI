@@ -53,6 +53,7 @@ func (h *Curriculum) WithAuth(identity CurriculumIdentity, adminAuthorized Admin
 
 func (h *Curriculum) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/curriculum/complete", h.Complete)
+	mux.HandleFunc("POST /api/v1/curriculum/resume", h.Resume)
 	mux.HandleFunc("POST /api/v1/curriculum/share-link", h.ShareLink)
 	mux.HandleFunc("GET /api/v1/curriculum/share-status", h.ShareStatus)
 	mux.HandleFunc("GET /api/v1/admin/social-shares", h.AdminListShares)
@@ -138,9 +139,16 @@ func (h *Curriculum) Complete(w http.ResponseWriter, r *http.Request) {
 	}
 	studentID, ok := curriculumIdentity(r, input.StudentID)
 	if h.identity != nil {
-		if id, err := h.identity(r); err == nil && id != "" {
-			studentID, ok = id, true
+		id, authErr := h.identity(r)
+		if authErr != nil || id == "" {
+			curriculumError(w, 401, "authentication required")
+			return
 		}
+		if (input.StudentID != "" && input.StudentID != id) || (r.Header.Get("X-Student-ID") != "" && r.Header.Get("X-Student-ID") != id) || (studentID != "" && studentID != id) {
+			curriculumError(w, 400, "student identity does not match session")
+			return
+		}
+		studentID, ok = id, true
 	}
 	input.Submission = strings.TrimSpace(input.Submission)
 	if !ok || input.Day < 1 || input.Day > 4 || input.Submission == "" || !utf8.ValidString(input.Submission) || utf8.RuneCountInString(input.Submission) > maxCurriculumSubmission {
@@ -184,6 +192,19 @@ func (h *Curriculum) Complete(w http.ResponseWriter, r *http.Request) {
 
 	now := h.now().UTC()
 	completed := false
+	var started time.Time
+	var explicitStart sql.NullTime
+	if err = tx.QueryRowContext(r.Context(), "SELECT curriculum_started_at,consent_timestamp FROM students WHERE id=$1", studentID).Scan(&explicitStart, &started); err != nil {
+		curriculumError(w, 503, "course schedule unavailable")
+		return
+	}
+	if explicitStart.Valid {
+		started = explicitStart.Time
+	}
+	if now.Before(started.Add(time.Duration(input.Day-1) * 24 * time.Hour)) {
+		curriculumJSON(w, 403, map[string]any{"error": "lesson is scheduled for later", "unlocks_at": started.Add(time.Duration(input.Day-1) * 24 * time.Hour)})
+		return
+	}
 	var completedAt sql.NullTime
 	err = tx.QueryRowContext(r.Context(), "SELECT completed,completed_at FROM student_progress WHERE student_id=$1 AND day_number=$2", studentID, input.Day).Scan(&completed, &completedAt)
 	progressExists := err == nil
@@ -282,9 +303,16 @@ func (h *Curriculum) ShareLink(w http.ResponseWriter, r *http.Request) {
 	}
 	studentID, ok := curriculumIdentity(r, input.StudentID)
 	if h.identity != nil {
-		if id, err := h.identity(r); err == nil && id != "" {
-			studentID, ok = id, true
+		id, authErr := h.identity(r)
+		if authErr != nil || id == "" {
+			curriculumError(w, 401, "authentication required")
+			return
 		}
+		if (input.StudentID != "" && input.StudentID != id) || (r.Header.Get("X-Student-ID") != "" && r.Header.Get("X-Student-ID") != id) || (studentID != "" && studentID != id) {
+			curriculumError(w, 400, "student identity does not match session")
+			return
+		}
+		studentID, ok = id, true
 	}
 	if !ok || input.Day < 1 || input.Day > 4 {
 		curriculumError(w, http.StatusBadRequest, "valid student and day between 1 and 4 required")
@@ -318,18 +346,18 @@ func (h *Curriculum) ShareLink(w http.ResponseWriter, r *http.Request) {
 	// Check if share link already submitted for this day
 	var existingStatus string
 	err = tx.QueryRowContext(r.Context(), "SELECT status FROM social_shares WHERE student_id=$1 AND day_number=$2", studentID, input.Day).Scan(&existingStatus)
-	if err == nil {
+	if err == nil && existingStatus != "rejected" {
 		curriculumError(w, http.StatusConflict, "a social share link has already been submitted for this day")
 		return
 	}
-	if !errors.Is(err, sql.ErrNoRows) {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		curriculumError(w, http.StatusServiceUnavailable, "submission unavailable")
 		return
 	}
 
 	now := h.now().UTC()
 	_, err = tx.ExecContext(r.Context(), `INSERT INTO social_shares (student_id, day_number, share_url, platform, status, xp_awarded, created_at)
-		VALUES ($1, $2, $3, $4, 'pending', 0, $5)`, studentID, input.Day, shareURL, platform, now)
+		VALUES ($1, $2, $3, $4, 'pending', 0, $5) ON CONFLICT(student_id,day_number) DO UPDATE SET share_url=excluded.share_url,platform=excluded.platform,status='pending',created_at=excluded.created_at,reviewed_at=NULL WHERE social_shares.status='rejected'`, studentID, input.Day, shareURL, platform, now)
 	if err != nil {
 		curriculumError(w, http.StatusServiceUnavailable, "submission unavailable")
 		return
@@ -360,9 +388,16 @@ func (h *Curriculum) ShareStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	studentID, ok := curriculumIdentity(r, "")
 	if h.identity != nil {
-		if id, err := h.identity(r); err == nil && id != "" {
-			studentID, ok = id, true
+		id, authErr := h.identity(r)
+		if authErr != nil || id == "" {
+			curriculumError(w, 401, "authentication required")
+			return
 		}
+		if studentID != "" && studentID != id {
+			curriculumError(w, 400, "student identity does not match session")
+			return
+		}
+		studentID, ok = id, true
 	}
 	if !ok {
 		curriculumError(w, http.StatusUnauthorized, "authentication required")
@@ -484,7 +519,11 @@ func (h *Curriculum) AdminReviewShare(w http.ResponseWriter, r *http.Request) {
 
 	var studentID, currentStatus string
 	var dayNumber int
-	err = tx.QueryRowContext(r.Context(), `SELECT student_id, day_number, status FROM social_shares WHERE id = $1`, input.ShareID).Scan(&studentID, &dayNumber, &currentStatus)
+	reviewQuery := "SELECT student_id, day_number, status FROM social_shares WHERE id = $1"
+	if h.database.Dialect == db.Postgres {
+		reviewQuery += " FOR UPDATE"
+	}
+	err = tx.QueryRowContext(r.Context(), reviewQuery, input.ShareID).Scan(&studentID, &dayNumber, &currentStatus)
 	if errors.Is(err, sql.ErrNoRows) {
 		curriculumError(w, http.StatusNotFound, "share not found")
 		return
@@ -533,4 +572,44 @@ func (h *Curriculum) AdminReviewShare(w http.ResponseWriter, r *http.Request) {
 		"status":     newStatus,
 		"xp_awarded": xpToAward,
 	})
+}
+
+// Resume restarts the reminder window without granting progress or resubscribing.
+func (h *Curriculum) Resume(w http.ResponseWriter, r *http.Request) {
+	if h.identity == nil {
+		curriculumError(w, 401, "authentication required")
+		return
+	}
+	id, err := h.identity(r)
+	if err != nil || id == "" {
+		curriculumError(w, 401, "authentication required")
+		return
+	}
+	tx, err := h.database.BeginTx(r.Context(), nil)
+	if err != nil {
+		curriculumError(w, 503, "resume unavailable")
+		return
+	}
+	defer tx.Rollback()
+	var stage string
+	err = tx.QueryRowContext(r.Context(), "SELECT current_stage FROM students WHERE id=$1 AND email_verified=TRUE AND unsubscribed_at IS NULL AND engagement_status='lapsed'", id).Scan(&stage)
+	day, ok := curriculumDay(stage)
+	if err != nil || !ok {
+		curriculumError(w, 409, "no paused lesson to resume")
+		return
+	}
+	now := h.now().UTC()
+	if _, err = tx.ExecContext(r.Context(), "UPDATE students SET engagement_status='engaged',updated_at=$1 WHERE id=$2", now, id); err != nil {
+		curriculumError(w, 503, "resume unavailable")
+		return
+	}
+	if _, err = tx.ExecContext(r.Context(), "UPDATE student_progress SET delivered_at=$1,last_nudge_at=NULL WHERE student_id=$2 AND day_number=$3 AND completed=FALSE", now, id, day); err != nil {
+		curriculumError(w, 503, "resume unavailable")
+		return
+	}
+	if err = tx.Commit(); err != nil {
+		curriculumError(w, 503, "resume unavailable")
+		return
+	}
+	curriculumJSON(w, 200, map[string]string{"status": "resumed"})
 }

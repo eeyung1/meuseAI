@@ -56,7 +56,7 @@ func newFixture(t *testing.T, postgres bool) fixture {
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			return nil, err
 		}
-		if request.Amount != 500000 && request.Amount != 2500000 {
+		if request.Amount != 450000 && request.Amount != 500000 && request.Amount != 2500000 {
 			return nil, fmt.Errorf("unexpected amount")
 		}
 		body := fmt.Sprintf(`{"status":true,"data":{"authorization_url":"https://checkout.paystack.com/test","access_code":"test","reference":%q}}`, request.Reference)
@@ -143,6 +143,9 @@ func TestStudentJourney(t *testing.T) {
 		t.Run(fmt.Sprintf("postgres=%v", postgres), func(t *testing.T) {
 			f := newFixture(t, postgres)
 			id, cookie, unsubscribe := register(t, f)
+			if _, err := f.app.Database.Exec("UPDATE students SET curriculum_started_at=$1 WHERE id=$2", time.Now().UTC().Add(-72*time.Hour), id); err != nil {
+				t.Fatal(err)
+			}
 			for day := 1; day <= 4; day++ {
 				complete(t, f, cookie, day)
 			}
@@ -169,7 +172,7 @@ func TestStudentJourney(t *testing.T) {
 				t.Fatal("invalid checkout response")
 			}
 			for i := 0; i < 2; i++ {
-				w = webhook(f.app, webhookBody(checkout.Reference, 500000))
+				w = webhook(f.app, webhookBody(checkout.Reference, 450000))
 				if w.Code != 200 {
 					t.Fatal(w.Body.String())
 				}

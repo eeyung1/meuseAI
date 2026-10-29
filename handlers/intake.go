@@ -228,7 +228,7 @@ func (h *Intake) transition(w http.ResponseWriter, r *http.Request, token string
 	var query string
 	var args []any
 	if verify {
-		query = `UPDATE students SET email_verified=TRUE,verification_token=NULL,current_stage='day_1',engagement_status='pending',updated_at=$1
+		query = `UPDATE students SET email_verified=TRUE,curriculum_started_at=$1,verification_token=NULL,current_stage='day_1',engagement_status='pending',updated_at=$1
    WHERE verification_token=$2 AND email_verified=FALSE AND unsubscribed_at IS NULL AND created_at>$3 RETURNING id`
 		args = []any{now, tokenDigest(token), now.Add(-verificationLifetime)}
 	} else {
