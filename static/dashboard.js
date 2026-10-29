@@ -7,7 +7,6 @@
   let studioMode = 'selfie'; // 'selfie' | 'scratch'
   let activeCelebrationDay = null;
 
-  const showcase = window.MeuseShowcase?.create({ root: $('showcase-gallery'), document, fetch, confirm: message => window.confirm(message) });
   const labels = { available: 'Available now', completed: 'Completed', locked: 'Complete previous lesson', scheduled: 'Opens later', unlocked: 'Unlocked' };
   function notice(message) { $('notice').hidden = !message; $('notice').textContent = message || ''; }
   function connection(text, live = false) { $('connection').textContent = text; $('connection').parentElement.classList.toggle('live', live); }
@@ -153,14 +152,14 @@
       if (statusEl) {
         statusEl.hidden = false;
         if (existingShare.status === 'approved') {
-          statusEl.textContent = '✦ Verified! +200 XP bonus awarded for this share.';
+          statusEl.textContent = '✦ Verified! +250 XP bonus awarded for this share.';
           statusEl.style.color = 'var(--green)';
         } else if (existingShare.status === 'rejected') {
           statusEl.textContent = 'Post review was rejected. Please make sure your post is public and resubmit.';
           statusEl.style.color = '#ff6b6b';
           if (form) form.hidden = false;
         } else {
-          statusEl.textContent = '⏳ Post link submitted! Admin is reviewing it to confirm +200 XP.';
+          statusEl.textContent = '⏳ Post link submitted! Admin is reviewing it to confirm +250 XP.';
           statusEl.style.color = 'var(--yellow)';
         }
       }
@@ -201,19 +200,6 @@
     } else {
       studio.hidden = true;
     }
-  }
-
-  function renderShowcase(module) {
-    if (!showcase) return;
-    showcase.render(module, { promptField: $('gemini-prompt'), onUse: example => {
-      studioMode = 'scratch';
-      $('mode-scratch')?.classList.add('active'); $('mode-selfie')?.classList.remove('active');
-      const activeModule = snapshot?.modules.find(item => item.id === selected);
-      if (activeModule) renderStudioForModule(activeModule);
-      saveDraft();
-      openPractice();
-      if ($('studio-copied-note')) { $('studio-copied-note').hidden = false; $('studio-copied-note').textContent = example.references?.length ? 'Prompt loaded. Download and attach the preceding example image in Gemini before generating.' : 'Prompt loaded. Copy it, open Gemini, and paste to generate your own version.'; }
-    } });
   }
 
   function openPractice() {
@@ -280,7 +266,6 @@
       if (!remaining) scheduleRefresh();
     }
     renderStudioForModule(module);
-    renderShowcase(module);
 
     // Social share rendering for completed module
     if ($('social-celebration')) {
@@ -398,7 +383,7 @@
         body: JSON.stringify({ day, share_url: url, platform: 'social' })
       });
       if (statusEl) {
-        statusEl.textContent = '⏳ ' + (res.message || 'Link submitted for admin confirmation (+200 XP upon approval)!');
+        statusEl.textContent = '⏳ ' + (res.message || 'Link submitted for admin confirmation (+250 XP upon approval)!');
         statusEl.style.color = 'var(--yellow)';
         statusEl.hidden = false;
       }

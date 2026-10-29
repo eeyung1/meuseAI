@@ -46,11 +46,6 @@ jobs:
       - name: Run Tests (PostgreSQL & SQLite)
         run: go test -v -race ./...
 
-      - name: Showcase production tooling tests
-        run: |
-          python3 -m pip install -r scripts/requirements-showcase.txt
-          python3 -m unittest discover -s scripts -p 'test_showcase_production.py' -v
-
       - name: Dashboard behavior tests
         run: node --test static/*.test.cjs
 

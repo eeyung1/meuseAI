@@ -374,7 +374,7 @@ func (h *Curriculum) ShareLink(w http.ResponseWriter, r *http.Request) {
 	curriculumJSON(w, http.StatusOK, map[string]any{
 		"status":    "pending",
 		"day":       input.Day,
-		"message":   "Post link submitted! Your +200 bonus XP will be awarded once verified by admin.",
+		"message":   "Post link submitted! Your +250 bonus XP will be awarded once verified by admin.",
 		"share_url": shareURL,
 		"platform":  platform,
 	})
@@ -485,7 +485,7 @@ func (h *Curriculum) AdminListShares(w http.ResponseWriter, r *http.Request) {
 	curriculumJSON(w, http.StatusOK, map[string]any{"shares": items})
 }
 
-// AdminReviewShare updates the approval status of a student's social share and grants 200 XP if approved.
+// AdminReviewShare updates the approval status of a student's social share and grants 250 XP if approved.
 func (h *Curriculum) AdminReviewShare(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -541,9 +541,9 @@ func (h *Curriculum) AdminReviewShare(w http.ResponseWriter, r *http.Request) {
 	xpToAward := 0
 	newStatus := "rejected"
 	if input.Action == "approve" {
-		xpToAward = 200
+		xpToAward = 250
 		newStatus = "approved"
-		// Credit the 200 XP to the student
+		// Credit the 250 XP to the student
 		_, err = tx.ExecContext(r.Context(), "UPDATE students SET xp = xp + $1, updated_at = $2 WHERE id = $3", xpToAward, now, studentID)
 		if err != nil {
 			curriculumError(w, http.StatusServiceUnavailable, "review unavailable")

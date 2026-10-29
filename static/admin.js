@@ -5,8 +5,6 @@
   const $ = id => document.getElementById(id);
 
   let currentToken = '';
-  let showcaseLoaded=false;
-  const showcase=window.MeuseAdminShowcase?.create({document,fetch,getToken:()=>currentToken,clipboard:navigator.clipboard,confirm:message=>window.confirm(message),URL:window.URL,onUnauthorized:()=>{currentToken='';localStorage.removeItem(STORAGE_KEY);showcaseLoaded=false;showAuth();}});
 
   function init() {
     const params = new URLSearchParams(window.location.search);
@@ -73,14 +71,12 @@
   }
 
   function showAuth() {
-    showcase?.clear();showcaseLoaded=false;
     if ($('admin-auth-card')) $('admin-auth-card').hidden = false;
     if ($('admin-portal-content')) $('admin-portal-content').hidden = true;
     if ($('admin-logout-btn')) $('admin-logout-btn').hidden = true;
   }
 
   function showPortal() {
-    if(!showcaseLoaded){showcaseLoaded=true;showcase?.load();}
     if ($('admin-auth-card')) $('admin-auth-card').hidden = true;
     if ($('admin-portal-content')) $('admin-portal-content').hidden = false;
     if ($('admin-logout-btn')) $('admin-logout-btn').hidden = false;
@@ -220,7 +216,7 @@
       if (item.status === 'approved') {
         statusBadge.style.background = 'rgba(87, 217, 163, 0.15)';
         statusBadge.style.color = 'var(--green)';
-        statusBadge.textContent = 'Approved (+200 XP)';
+        statusBadge.textContent = `Approved (+${Number(item.xp_awarded) || 0} XP)`;
       } else if (item.status === 'rejected') {
         statusBadge.style.background = 'rgba(255, 107, 107, 0.15)';
         statusBadge.style.color = '#ff6b6b';

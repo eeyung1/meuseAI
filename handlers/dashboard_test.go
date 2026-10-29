@@ -269,3 +269,13 @@ func TestDashboardEmptyActivityAndMethod(t *testing.T) {
 		t.Fatal("method guard missing")
 	}
 }
+
+func TestRemovedShowcaseRoutes(t *testing.T) {
+	_, _, mux := dashboardFixture(t, false)
+	for _, path := range []string{"/assets/showcase.js", "/assets/admin-showcase.js", "/assets/showcase/manifest.json", "/assets/showcase/day1-1.jpg", "/api/v1/admin/showcase"} {
+		w := dashboardGet(mux, path)
+		if w.Code != 404 {
+			t.Fatalf("removed route %s returned %d", path, w.Code)
+		}
+	}
+}
