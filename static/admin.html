@@ -5,13 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>meuseAI · Admin Verification Portal</title>
   <link rel="stylesheet" href="/assets/landing.css">
+  <link rel="stylesheet" href="/assets/admin.css">
+  <script defer src="/assets/admin-showcase.js"></script>
   <script defer src="/assets/admin.js"></script>
 </head>
 <body>
   <header>
     <a class="brand" href="/">
       <span class="brand-dot"></span>meuse<span>AI</span>
-      <span style="font-size:12px;margin-left:12px;background:var(--elevated);border:1px solid var(--border);padding:3px 8px;border-radius:6px;color:var(--yellow);font-weight:600;">ADMIN</span>
+      <span class="admin-layout-1">ADMIN</span>
     </a>
     <div class="header-actions">
       <a href="/dashboard" class="btn-secondary-sm">Student Dashboard</a>
@@ -19,45 +21,62 @@
     </div>
   </header>
 
-  <main style="max-width:1200px;margin:32px auto;padding:0 24px;">
+  <main class="admin-layout-2">
     <!-- Auth Gate -->
-    <div id="admin-auth-card" class="action-card" style="max-width:500px;margin:60px auto;">
-      <div style="font-size:32px;margin-bottom:12px;">🔐</div>
-      <h2 style="font-size:22px;margin-bottom:8px;">Admin Authentication</h2>
-      <p class="muted" style="font-size:14px;margin-bottom:20px;">Enter your <code>MEUSEAI_ADMIN_TOKEN</code> to access the verification queue and review student social posts.</p>
-      <form id="admin-auth-form" style="display:grid;gap:12px;">
-        <input type="password" id="admin-token-input" placeholder="Paste MEUSEAI_ADMIN_TOKEN" required style="width:100%;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:monospace;">
-        <button type="submit" class="btn-primary" style="width:100%;">Access Admin Portal →</button>
+    <div id="admin-auth-card" class="action-card admin-layout-3">
+      <div class="admin-layout-4">🔐</div>
+      <h2 class="admin-layout-5">Admin Authentication</h2>
+      <p class="muted admin-layout-6">Enter your <code>MEUSEAI_ADMIN_TOKEN</code> to access the gallery uploads and student-post verification.</p>
+      <form id="admin-auth-form" class="admin-layout-7">
+        <input type="password" id="admin-token-input" placeholder="Paste MEUSEAI_ADMIN_TOKEN" required class="admin-layout-8">
+        <button type="submit" class="btn-primary admin-layout-9">Access Admin Portal →</button>
       </form>
-      <p id="admin-auth-error" style="color:#ff6b6b;font-size:13px;margin-top:10px;" hidden></p>
+      <p id="admin-auth-error" hidden class="admin-layout-10"></p>
     </div>
 
     <!-- Portal Content -->
     <div id="admin-portal-content" hidden>
+      <section class="action-card showcase-admin-section" aria-label="Showcase image manager">
+        <h1>Course showcase images</h1>
+        <p class="muted">Copy each prompt, generate the image in your preferred tool, then upload it here. No API key is needed. Uploads are private until all twelve images are approved and published.</p>
+        <p id="showcase-admin-state">Loading gallery…</p>
+        <button id="showcase-refresh-btn" type="button" class="btn-secondary-sm">Refresh gallery</button>
+        <p id="showcase-admin-note" role="status" aria-live="polite"></p>
+        <div id="showcase-admin-grid"></div>
+        <div class="showcase-publish-controls">
+          <label><input id="showcase-rights-confirmed" type="checkbox"> I checked the usage terms of the tools used and have rights to display all twelve images.</label>
+          <label for="showcase-rights-note">Terms-review note</label>
+          <textarea id="showcase-rights-note" rows="2" placeholder="Record which tools and terms you checked, and when." maxlength="1000"></textarea>
+          <button id="showcase-publish-btn" type="button" class="btn-primary-sm" disabled>Publish all twelve images</button>
+          <button id="showcase-unpublish-btn" type="button" class="btn-secondary-sm" disabled>Unpublish gallery</button>
+          <p class="muted">Unpublish before replacing an image. Existing lesson progress and student submissions are unaffected.</p>
+        </div>
+      </section>
+
       <!-- Stat Strip -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:28px;">
-        <div class="action-card" style="padding:20px;">
-          <span class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Pending Verification</span>
-          <h2 id="stat-pending" style="font-size:32px;color:var(--yellow);margin-top:4px;">0</h2>
+      <div class="admin-layout-11">
+        <div class="action-card admin-layout-12">
+          <span class="muted admin-layout-13">Pending Verification</span>
+          <h2 id="stat-pending" class="admin-layout-14">0</h2>
         </div>
-        <div class="action-card" style="padding:20px;">
-          <span class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Approved Shares</span>
-          <h2 id="stat-approved" style="font-size:32px;color:var(--green);margin-top:4px;">0</h2>
+        <div class="action-card admin-layout-12">
+          <span class="muted admin-layout-13">Approved Shares</span>
+          <h2 id="stat-approved" class="admin-layout-15">0</h2>
         </div>
-        <div class="action-card" style="padding:20px;">
-          <span class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Total Submissions</span>
-          <h2 id="stat-total" style="font-size:32px;color:var(--text);margin-top:4px;">0</h2>
+        <div class="action-card admin-layout-12">
+          <span class="muted admin-layout-13">Total Submissions</span>
+          <h2 id="stat-total" class="admin-layout-16">0</h2>
         </div>
       </div>
 
       <!-- Controls & Filter -->
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:20px;">
+      <div class="admin-layout-17">
         <div>
-          <h1 style="font-size:24px;margin:0 0 4px;">Social Share Verification Queue</h1>
-          <p class="muted" style="font-size:14px;margin:0;">Review student social media posts and confirm +200 XP rewards.</p>
+          <h1 class="admin-layout-18">Social Share Verification Queue</h1>
+          <p class="muted admin-layout-19">Review student social media posts and confirm +200 XP rewards.</p>
         </div>
-        <div style="display:flex;gap:10px;align-items:center;">
-          <select id="filter-status" style="background:var(--elevated);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;">
+        <div class="admin-layout-20">
+          <select id="filter-status" class="admin-layout-21">
             <option value="">All Statuses</option>
             <option value="pending" selected>Pending Only</option>
             <option value="approved">Approved</option>
@@ -68,40 +87,40 @@
       </div>
 
       <!-- Share Items List -->
-      <div id="shares-table-container" class="action-card" style="padding:0;overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:14px;text-align:left;">
+      <div id="shares-table-container" class="action-card admin-layout-22">
+        <table class="admin-layout-23">
           <thead>
-            <tr style="border-bottom:1px solid var(--border);background:var(--elevated);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.8px;">
-              <th style="padding:14px 18px;">Student</th>
-              <th style="padding:14px 18px;">Lesson</th>
-              <th style="padding:14px 18px;">Platform</th>
-              <th style="padding:14px 18px;">Post Link</th>
-              <th style="padding:14px 18px;">Submitted</th>
-              <th style="padding:14px 18px;">Status</th>
-              <th style="padding:14px 18px;text-align:right;">Actions</th>
+            <tr class="admin-layout-24">
+              <th class="admin-layout-25">Student</th>
+              <th class="admin-layout-25">Lesson</th>
+              <th class="admin-layout-25">Platform</th>
+              <th class="admin-layout-25">Post Link</th>
+              <th class="admin-layout-25">Submitted</th>
+              <th class="admin-layout-25">Status</th>
+              <th class="admin-layout-26">Actions</th>
             </tr>
           </thead>
           <tbody id="shares-tbody">
             <tr>
-              <td colspan="7" style="padding:32px;text-align:center;color:var(--muted);">Loading verification queue...</td>
+              <td colspan="7" class="admin-layout-27">Loading verification queue...</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <!-- Tier 2 Admin Quick Gate -->
-      <div class="action-card" style="margin-top:36px;padding:24px;">
-        <h3 style="font-size:18px;margin-bottom:8px;">Tier 2 Coding Agent Readiness Gate</h3>
-        <p class="muted" style="font-size:13px;margin-bottom:16px;">Toggle manual readiness for qualified students to unlock ₦25,000 Tier 2 AI Coding Agent track.</p>
-        <form id="tier2-toggle-form" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
-          <input type="text" id="tier2-student-id" placeholder="Student ID (UUID)" required style="flex:1;min-width:240px;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:monospace;font-size:13px;">
-          <select id="tier2-ready-select" style="padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;">
+      <div class="action-card admin-layout-28">
+        <h3 class="admin-layout-29">Tier 2 Coding Agent Readiness Gate</h3>
+        <p class="muted admin-layout-30">Toggle manual readiness for qualified students to unlock ₦25,000 Tier 2 AI Coding Agent track.</p>
+        <form id="tier2-toggle-form" class="admin-layout-31">
+          <input type="text" id="tier2-student-id" placeholder="Student ID (UUID)" required class="admin-layout-32">
+          <select id="tier2-ready-select" class="admin-layout-33">
             <option value="true">Enable Readiness (Ready)</option>
             <option value="false">Disable Readiness</option>
           </select>
           <button type="submit" class="btn-primary-sm">Apply Gate Setting</button>
         </form>
-        <p id="tier2-result-note" style="font-size:13px;margin-top:10px;" hidden></p>
+        <p id="tier2-result-note" hidden class="admin-layout-34"></p>
       </div>
     </div>
   </main>

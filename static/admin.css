@@ -1,0 +1,35 @@
+/* Admin layout styles are external to comply with the page CSP. */
+.admin-layout-1{font-size:12px;margin-left:12px;background:var(--elevated);border:1px solid var(--border);padding:3px 8px;border-radius:6px;color:var(--yellow);font-weight:600;}
+.admin-layout-2{max-width:1200px;margin:32px auto;padding:0 24px;}
+.admin-layout-3{max-width:500px;margin:60px auto;}
+.admin-layout-4{font-size:32px;margin-bottom:12px;}
+.admin-layout-5{font-size:22px;margin-bottom:8px;}
+.admin-layout-6{font-size:14px;margin-bottom:20px;}
+.admin-layout-7{display:grid;gap:12px;}
+.admin-layout-8{width:100%;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:monospace;}
+.admin-layout-9{width:100%;}
+.admin-layout-10{color:#ff6b6b;font-size:13px;margin-top:10px;}
+.admin-layout-11{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:28px;}
+.admin-layout-12{padding:20px;}
+.admin-layout-13{font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;}
+.admin-layout-14{font-size:32px;color:var(--yellow);margin-top:4px;}
+.admin-layout-15{font-size:32px;color:var(--green);margin-top:4px;}
+.admin-layout-16{font-size:32px;color:var(--text);margin-top:4px;}
+.admin-layout-17{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:20px;}
+.admin-layout-18{font-size:24px;margin:0 0 4px;}
+.admin-layout-19{font-size:14px;margin:0;}
+.admin-layout-20{display:flex;gap:10px;align-items:center;}
+.admin-layout-21{background:var(--elevated);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;}
+.admin-layout-22{padding:0;overflow-x:auto;}
+.admin-layout-23{width:100%;border-collapse:collapse;font-size:14px;text-align:left;}
+.admin-layout-24{border-bottom:1px solid var(--border);background:var(--elevated);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.8px;}
+.admin-layout-25{padding:14px 18px;}
+.admin-layout-26{padding:14px 18px;text-align:right;}
+.admin-layout-27{padding:32px;text-align:center;color:var(--muted);}
+.admin-layout-28{margin-top:36px;padding:24px;}
+.admin-layout-29{font-size:18px;margin-bottom:8px;}
+.admin-layout-30{font-size:13px;margin-bottom:16px;}
+.admin-layout-31{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+.admin-layout-32{flex:1;min-width:240px;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:monospace;font-size:13px;}
+.admin-layout-33{padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;}
+.admin-layout-34{font-size:13px;margin-top:10px;}

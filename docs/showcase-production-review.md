@@ -144,7 +144,13 @@ The workflow for each stage is branch → push → passing CI → merge. Commit 
 
 Private student uploads (My Creations) and the consent-based public student wall remain separate work. This stage creates only curated course-example infrastructure. Tier 1 copy focuses on turning a course image into a landing page and discloses that external tools may have separate charges; it makes no unverified market-price claims.
 
-## Production runner
+## Manual admin upload — preferred workflow
+
+The default workflow is now `/admin` → **Course showcase images**. Copy each prompt, generate the picture yourself in your preferred tool, upload the file, inspect the normalized preview, and approve. Upload and approve reference examples before reviewing their dependent images. When all twelve are ready, acknowledge source-tool usage rights and publish from the same page. No API credentials are required.
+
+The following command-line production runner is optional and remains unpublished infrastructure; it is not needed for manual uploads. Uploaded originals are not stored on Render's ephemeral filesystem: their compressed versions are saved in the application database. See `cmd/server/README.md` for upload limits and persistence details.
+
+## Optional production runner
 
 The runner is separate from the student web application. It uses the documented Gemini `generateContent` REST endpoint, which Google continues to support. The model is an explicit argument so availability and billing can be reviewed before a call. Official references checked during preparation:
 

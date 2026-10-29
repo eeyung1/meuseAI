@@ -1,0 +1,18 @@
+-- Version 4: curated admin images, capped to twelve compressed JPEGs.
+CREATE TABLE showcase_images (
+ id VARCHAR(16) PRIMARY KEY,
+ content BLOB NOT NULL,
+ sha256 VARCHAR(64) NOT NULL,
+ source VARCHAR(32) NOT NULL,
+ approved BOOLEAN NOT NULL DEFAULT FALSE,
+ review_note TEXT NOT NULL DEFAULT '',
+ uploaded_at TIMESTAMP NOT NULL,
+ reviewed_at TIMESTAMP
+);
+CREATE TABLE showcase_settings (
+ id INTEGER PRIMARY KEY CHECK (id=1),
+ published BOOLEAN NOT NULL DEFAULT FALSE,
+ rights_note TEXT NOT NULL DEFAULT '',
+ published_at TIMESTAMP
+);
+INSERT INTO showcase_settings(id,published) VALUES(1,FALSE);

@@ -8,14 +8,19 @@ import (
 )
 
 func TestShowcaseEmbeddedRoutes(t *testing.T) {
-	_, _, mux := dashboardFixture(t, false)
+	database, _, mux := dashboardFixture(t, false)
+	showcase, err := NewShowcase(database, func(*http.Request) bool { return true })
+	if err != nil {
+		t.Fatal(err)
+	}
+	showcase.Register(mux)
 	for _, path := range []string{"/assets/showcase.js", "/assets/showcase/manifest.json"} {
 		w := httptest.NewRecorder()
 		mux.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
 		if w.Code != 200 {
 			t.Fatalf("%s: %d %s", path, w.Code, w.Body.String())
 		}
-		if path == "/assets/showcase/manifest.json" && (!strings.Contains(w.Body.String(), `"published": false`) || w.Header().Get("Cache-Control") != "no-store") {
+		if path == "/assets/showcase/manifest.json" && (!strings.Contains(w.Body.String(), `"published":false`) || w.Header().Get("Cache-Control") != "no-store") {
 			t.Fatal("unreviewed content unexpectedly published or cached")
 		}
 	}

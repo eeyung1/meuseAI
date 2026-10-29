@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"regexp"
 	"time"
 
 	"github.com/eeyung1/meuseAI/db"
@@ -17,8 +16,6 @@ import (
 	assets "github.com/eeyung1/meuseAI/static"
 	"github.com/eeyung1/meuseAI/telemetry"
 )
-
-var showcaseAssetName = regexp.MustCompile(`^day[1-4]-[1-3]\.(jpg|webp)$`)
 
 type DashboardIdentity func(*http.Request) (string, error)
 type Dashboard struct {
@@ -37,19 +34,8 @@ func (d *Dashboard) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/dashboard/me", d.Me)
 	mux.HandleFunc("GET /api/v1/telemetry/stream", d.Stream)
 	mux.HandleFunc("GET /dashboard", d.Page)
-	mux.HandleFunc("GET /assets/showcase/{file}", func(w http.ResponseWriter, r *http.Request) {
-		file := r.PathValue("file")
-		if file != "manifest.json" && !showcaseAssetName.MatchString(file) {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		if file == "manifest.json" {
-			w.Header().Set("Cache-Control", "no-store")
-		}
-		http.ServeFileFS(w, r, assets.Assets, "assets/showcase/"+file)
-	})
-	for _, name := range []string{"showcase.js", "dashboard.css", "dashboard.js", "landing.css", "landing.js", "verify.js", "share.js", "admin.js"} {
+
+	for _, name := range []string{"showcase.js", "admin-showcase.js", "admin.css", "dashboard.css", "dashboard.js", "landing.css", "landing.js", "verify.js", "share.js", "admin.js"} {
 		name := name
 		mux.HandleFunc("GET /assets/"+name, func(w http.ResponseWriter, r *http.Request) { http.ServeFileFS(w, r, assets.Assets, name) })
 	}
