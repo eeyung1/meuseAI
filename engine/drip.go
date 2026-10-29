@@ -142,17 +142,28 @@ func (d *Drip) evaluateStudent(ctx context.Context, studentID string, now time.T
 		return Evaluation{}, nil
 	}
 
+	var started time.Time
+	var explicitStart sql.NullTime
+	if err = tx.QueryRowContext(ctx, "SELECT curriculum_started_at,consent_timestamp FROM students WHERE id=$1", studentID).Scan(&explicitStart, &started); err != nil {
+		return Evaluation{}, err
+	}
+	if explicitStart.Valid {
+		started = explicitStart.Time
+	}
+	if now.Before(started.Add(time.Duration(day-1) * 24 * time.Hour)) {
+		return Evaluation{}, nil
+	}
 	var completed bool
-	var lastNudge sql.NullTime
-	err = tx.QueryRowContext(ctx, `SELECT completed,last_nudge_at FROM student_progress
-		WHERE student_id=$1 AND day_number=$2`, studentID, day).Scan(&completed, &lastNudge)
+	var lastNudge, deliveredAt sql.NullTime
+	err = tx.QueryRowContext(ctx, `SELECT completed,last_nudge_at,delivered_at FROM student_progress
+		WHERE student_id=$1 AND day_number=$2`, studentID, day).Scan(&completed, &lastNudge, &deliveredAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		action := Action{Kind: DeliverDay, StudentID: studentID, Email: email, Day: day}
 		if err = d.dispatcher.Dispatch(ctx, action); err != nil {
 			return Evaluation{}, fmt.Errorf("deliver day %d: %w", day, err)
 		}
-		if _, err = tx.ExecContext(ctx, `INSERT INTO student_progress (student_id,day_number,completed)
-			VALUES ($1,$2,FALSE)`, studentID, day); err != nil {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO student_progress (student_id,day_number,completed,delivered_at)
+			VALUES ($1,$2,FALSE,$3)`, studentID, day, now); err != nil {
 			return Evaluation{}, fmt.Errorf("record day delivery: %w", err)
 		}
 		if _, err = tx.ExecContext(ctx, "UPDATE students SET updated_at=$1 WHERE id=$2", now, studentID); err != nil {
@@ -171,6 +182,9 @@ func (d *Drip) evaluateStudent(ctx context.Context, studentID string, now time.T
 	}
 	if completed {
 		return Evaluation{}, nil
+	}
+	if deliveredAt.Valid {
+		updatedAt = deliveredAt.Time
 	}
 	cutoff := now.Add(-inactivityWindow)
 	if !lastNudge.Valid {

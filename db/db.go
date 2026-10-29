@@ -12,7 +12,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/mattn/go-sqlite3"
 )
 
 type Dialect string
@@ -108,7 +108,7 @@ func Open(ctx context.Context, cfg Config) (*DB, error) {
 	pool.SetMaxIdleConns(maxIdle)
 	pool.SetConnMaxLifetime(lifetime)
 	database := &DB{DB: pool, Dialect: dialect}
-	if err = pool.PingContext(ctx); err == nil {
+	if err = pingDatabase(ctx, pool, dialect); err == nil {
 		if cfg.Schema != "" && dialect == Postgres {
 			_, err = pool.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", cfg.Schema))
 		}
@@ -181,4 +181,25 @@ func withPostgresSearchPath(dsn, schema string) string {
 		return strings.TrimSpace(dsn) + " search_path=" + schema
 	}
 	return dsn
+}
+
+// Concurrent SQLite opens can briefly collide while the driver enables WAL,
+// before its busy timeout takes effect. Retry only that transient lock error.
+func pingDatabase(ctx context.Context, pool *sql.DB, dialect Dialect) error {
+	var err error
+	for attempt := 0; attempt < 50; attempt++ {
+		err = pool.PingContext(ctx)
+		var sqliteErr sqlite3.Error
+		if err == nil || dialect != SQLite || !errors.As(err, &sqliteErr) || (sqliteErr.Code != sqlite3.ErrBusy && sqliteErr.Code != sqlite3.ErrLocked) {
+			return err
+		}
+		timer := time.NewTimer(20 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+	return err
 }

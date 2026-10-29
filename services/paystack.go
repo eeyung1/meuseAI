@@ -23,6 +23,17 @@ const (
 	PaystackCurrency       = "NGN"
 )
 
+// A completed four-lesson course earns 1,000 XP and a 10% discount.
+func Tier1DiscountPercent(xp int) int {
+	if xp >= 1000 {
+		return 10
+	}
+	return 0
+}
+func ValidTier1Amount(amount int64) bool {
+	return amount == Tier1AmountKobo || amount == Tier1AmountKobo*90/100
+}
+
 var paystackReference = regexp.MustCompile(`^[A-Za-z0-9.=-]{1,128}$`)
 
 func TierAmount(tier string) (int64, error) {
@@ -77,7 +88,7 @@ func (p *Paystack) Initialize(ctx context.Context, input CheckoutRequest) (Check
 		return zero, errors.New("invalid checkout request")
 	}
 	expected, err := TierAmount(input.Metadata["tier"])
-	if err != nil || input.Amount != expected || input.Metadata["student_id"] == "" {
+	if err != nil || (input.Amount != expected && !(input.Metadata["tier"] == "tier_1" && ValidTier1Amount(input.Amount))) || input.Metadata["student_id"] == "" {
 		return zero, errors.New("invalid checkout price or owner")
 	}
 	// The public API documents metadata as a stringified JSON object.

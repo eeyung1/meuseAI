@@ -116,7 +116,7 @@ func (a *App) middleware(next http.Handler) http.Handler {
 			defer cancel()
 			r = r.WithContext(ctx)
 		}
-		protected := r.URL.Path == "/api/v1/curriculum/complete" || r.URL.Path == "/api/v1/payments/checkout" || r.URL.Path == "/api/v1/dashboard/me" || r.URL.Path == "/api/v1/telemetry/stream"
+		protected := r.URL.Path == "/api/v1/curriculum/resume" || r.URL.Path == "/api/v1/curriculum/share-link" || r.URL.Path == "/api/v1/curriculum/share-status" || r.URL.Path == "/api/v1/curriculum/complete" || r.URL.Path == "/api/v1/payments/checkout" || r.URL.Path == "/api/v1/dashboard/me" || r.URL.Path == "/api/v1/telemetry/stream"
 		student := ""
 		if protected {
 			var err error

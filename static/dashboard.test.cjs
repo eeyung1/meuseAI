@@ -23,6 +23,8 @@ class Element {
       contains: cls => this.className.includes(cls)
     };
   }
+  focus() {}
+  select() { this.selected = true; }
   set innerHTML(_) { throw new Error('Untrusted HTML rendering'); }
   addEventListener(type, fn) { this.listeners[type] = fn; }
   setAttribute(name, value) { this.attributes[name] = value; }
@@ -39,13 +41,14 @@ function harness(handler) {
   const elements = new Map(), streams = [], calls = [], timers = [], windows = {};
   const element = id => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id); };
   const nodes = ['day_1', 'day_2', 'day_3', 'day_4', 'tier_1'].map(id => { const e = new Element(); e.dataset.module = id; return e; });
-  const context = { document: { getElementById: element, querySelectorAll: () => nodes, createElement: () => new Element(), addEventListener() {}, hidden: false },
+  const storage = new Map();
+  const context = { navigator: { clipboard: { writeText: async () => {} } }, localStorage: { getItem:k=>storage.get(k), setItem:(k,v)=>storage.set(k,v), removeItem:k=>storage.delete(k) }, document: { getElementById: element, querySelectorAll: () => nodes, createElement: () => new Element(), addEventListener() {}, hidden: false },
     window: { addEventListener(type, fn) { windows[type] = fn; } }, URL, location: { assign(value) { context.destination = value; } },
     fetch: async (path, options) => { calls.push({ path, options }); return handler(path, options); },
     EventSource: class { constructor(path) { this.path = path; this.listeners = {}; streams.push(this); } addEventListener(type, fn) { this.listeners[type] = fn; } close() { this.closed = true; } },
     setTimeout(fn) { timers.push(fn); return timers.length; }, clearTimeout() {}, setInterval() { return 1; }, clearInterval() {} };
   vm.runInNewContext(fs.readFileSync(__dirname + '/dashboard.js', 'utf8'), context);
-  return { element, nodes, streams, calls, timers, windows, context };
+  return { element, nodes, streams, calls, timers, windows, context, storage };
 }
 const ok = value => ({ ok: true, status: 200, json: async () => value });
 
@@ -56,7 +59,7 @@ test('renders server state safely, selects locked modules and reconnects', async
   assert.equal(h.element('activity-list').children[0].children[0].textContent, '<script>not HTML</script>');
   assert.equal(h.element('module-title').textContent, 'Module 2');
   h.nodes[2].listeners.click(); assert.equal(h.element('submission-form').hidden, true);
-  assert.equal(h.element('module-state').textContent, 'Locked');
+  assert.equal(h.element('module-state').textContent, 'Complete previous lesson');
   assert.equal(h.streams.length, 1); h.streams[0].onopen(); await settle();
   assert.equal(h.element('connection').textContent, 'Live updates');
   h.streams[0].onerror(); assert.equal(h.element('connection').textContent, 'Reconnecting');
@@ -68,9 +71,9 @@ test('renders server state safely, selects locked modules and reconnects', async
 
 test('submits selected day and applies XP only after confirmed snapshot', async () => {
   let saved = false; const h = harness((path, options) => {
-    if (path === '/api/v1/curriculum/complete') { assert.deepEqual(JSON.parse(options.body), { day: 2, submission: 'My image prompt' }); saved = true; return ok({}); }
+    if (path === '/api/v1/curriculum/complete') { assert.deepEqual(JSON.parse(options.body), { day: 2, submission: 'My image prompt\n\nReflection: The side lighting changed the mood.' }); saved = true; return ok({}); }
     const data = profile(); if (saved) { data.xp = 500; data.modules[1].state = 'completed'; data.modules[2].state = 'available'; } return ok(data);
-  }); await settle(); h.element('submission').value = ' My image prompt ';
+  }); await settle(); h.element('reflection').value = 'The side lighting changed the mood.'; h.element('submission').value = ' My image prompt ';
   const promise = h.element('submission-form').listeners.submit({ preventDefault() {} });
   assert.equal(h.element('xp').textContent, '250'); await promise; await settle();
   assert.equal(h.element('xp').textContent, '500'); assert.equal(h.element('module-title').textContent, 'Module 3');
@@ -78,7 +81,7 @@ test('submits selected day and applies XP only after confirmed snapshot', async 
 
 test('failed submissions retain prompt and do not invent progress', async () => {
   const h = harness(path => path === '/api/v1/curriculum/complete' ? { ok: false, status: 503 } : ok(profile())); await settle();
-  h.element('submission').value = 'Unsaved exercise'; await h.element('submission-form').listeners.submit({ preventDefault() {} });
+  h.element('reflection').value = 'The side lighting changed the mood.'; h.element('submission').value = 'Unsaved exercise'; await h.element('submission-form').listeners.submit({ preventDefault() {} });
   assert.equal(h.element('xp').textContent, '250'); assert.equal(h.element('submission').value, 'Unsaved exercise');
   assert.match(h.element('notice').textContent, /try again/); assert.equal(h.element('submit-button').disabled, false);
 });
@@ -102,15 +105,15 @@ test('checkout accepts only Paystack HTTPS destination', async () => {
 test('studio switches between selfie and scratch modes and populates preset prompts', async () => {
   const h = harness(() => ok(profile())); await settle();
   assert.equal(h.element('gemini-studio').hidden, false);
-  assert.match(h.element('gemini-prompt').value, /uploaded photo|likeness/i);
+  assert.match(h.element('gemini-prompt').value, /reference image|recognizable/i);
 
   // Switch to creative scratch mode
   h.element('mode-scratch').listeners.click();
-  assert.match(h.element('gemini-prompt').value, /Crystal|golden-hour|volumetric/i);
+  assert.match(h.element('gemini-prompt').value, /subject|lighting/i);
 
   // Switch back to selfie mode
   h.element('mode-selfie').listeners.click();
-  assert.match(h.element('gemini-prompt').value, /uploaded photo|likeness/i);
+  assert.match(h.element('gemini-prompt').value, /reference image|recognizable/i);
 });
 
 test('submitting social share link posts to /api/v1/curriculum/share-link', async () => {
@@ -126,7 +129,7 @@ test('submitting social share link posts to /api/v1/curriculum/share-link', asyn
   await settle();
 
   // Complete day 2 to trigger celebration
-  h.element('submission').value = 'Test prompt';
+  h.element('reflection').value = 'The side lighting changed the mood.'; h.element('submission').value = 'Test prompt';
   await h.element('submission-form').listeners.submit({ preventDefault() {} });
   await settle();
 
@@ -145,10 +148,10 @@ test('submitting social share link posts to /api/v1/curriculum/share-link', asyn
   assert.match(h.element('share-link-status').textContent, /Submitted for verification/);
 });
 
-test('applies 10% discount to checkout button when XP exceeds 2000', async () => {
+test('applies 10% discount to checkout button after completing the course', async () => {
   const h = harness(() => {
     const data = profile();
-    data.xp = 2250;
+    data.xp = 1000;
     data.discount_percent = 10;
     data.tier_1_price_naira = 4500;
     data.modules[4].state = 'available';
@@ -160,3 +163,27 @@ test('applies 10% discount to checkout button when XP exceeds 2000', async () =>
   assert.match(h.element('checkout-button').textContent, /4,500/);
 });
 
+
+ test('clipboard failure gives a manual fallback and never claims success', async () => {
+ const h = harness(() => ok(profile())); await settle();
+ h.context.navigator.clipboard.writeText = async () => { throw new Error('denied'); };
+ await h.element('btn-copy-prompt').listeners.click();
+ assert.match(h.element('studio-copied-note').textContent, /blocked.*manually/);
+ assert.equal(h.element('gemini-prompt').selected, true);
+ });
+ test('drafts survive switching lessons, and completed lessons remain usable', async () => {
+ const h = harness(() => ok(profile())); await settle();
+ h.element('gemini-prompt').value = 'My own saved prompt';
+ h.element('gemini-prompt').listeners.input();
+ h.nodes[0].listeners.click();
+ assert.equal(h.element('gemini-studio').hidden, false);
+ assert.equal(h.element('saved-work').hidden, false);
+ h.nodes[1].listeners.click();
+ assert.equal(h.element('gemini-prompt').value, 'My own saved prompt');
+ });
+ test('scheduled lesson has a release time and cannot be submitted', async () => {
+ const h = harness(() => { const p = profile(); p.modules[1].state='scheduled';p.modules[1].unlocks_at=new Date(Date.now()+3600000).toISOString(); return ok(p); }); await settle();
+ assert.equal(h.element('submission-form').hidden, true);
+ assert.match(h.element('module-help').textContent, /opens/);
+ assert.equal(h.element('gemini-studio').hidden, true);
+ });

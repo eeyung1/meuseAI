@@ -50,6 +50,9 @@ func dashboardFixture(t *testing.T, postgres bool) (*db.DB, *Dashboard, *http.Se
 			t.Fatal(err)
 		}
 	}
+	if _, err = database.Exec("UPDATE students SET curriculum_started_at=$1", time.Now().UTC().Add(-24*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
 	if _, err = database.Exec("INSERT INTO student_progress(student_id,day_number,completed) VALUES('a',1,TRUE)"); err != nil {
 		t.Fatal(err)
 	}

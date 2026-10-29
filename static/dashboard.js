@@ -7,7 +7,7 @@
   let studioMode = 'selfie'; // 'selfie' | 'scratch'
   let activeCelebrationDay = null;
 
-  const labels = { available: 'Available now', completed: 'Completed', locked: 'Locked', unlocked: 'Unlocked' };
+  const labels = { available: 'Available now', completed: 'Completed', locked: 'Complete previous lesson', scheduled: 'Opens later', unlocked: 'Unlocked' };
   function notice(message) { $('notice').hidden = !message; $('notice').textContent = message || ''; }
   function connection(text, live = false) { $('connection').textContent = text; $('connection').parentElement.classList.toggle('live', live); }
   async function request(path, options = {}) {
@@ -31,6 +31,7 @@
     finally { loading = false; if (refreshAgain) { refreshAgain = false; scheduleRefresh(); } }
   }
   function render() {
+    if ($('resume-course')) $('resume-course').hidden = snapshot.engagement_status !== 'lapsed' || snapshot.unsubscribed;
     $('student-name').textContent = snapshot.full_name;
     $('greeting').textContent = `Welcome back, ${snapshot.full_name.split(' ')[0] || 'learner'}.`;
     $('avatar').textContent = snapshot.full_name.trim().slice(0, 1).toUpperCase() || '✦';
@@ -54,8 +55,8 @@
       if (discount > 0) {
         discountText.textContent = `🎉 ${discount}% Course Discount Unlocked (${Number(xp).toLocaleString()} XP)! Tier 1 is ₦${Number(price).toLocaleString()} instead of ₦5,000.`;
       } else {
-        const needed = 2000 - (xp % 2000);
-        discountText.textContent = `💎 ${Number(xp).toLocaleString()} XP Earned · Reach 2,000 XP (need ${needed} more) to unlock 10% OFF Tier 1 (Pay ₦4,500)!`;
+        const needed = Math.max(0, 1000 - xp);
+        discountText.textContent = `💎 ${Number(xp).toLocaleString()} XP Earned · Complete all four lessons and reach 1,000 XP (need ${needed} more) to unlock 10% OFF Tier 1 (Pay ₦4,500)!`;
       }
       discountBanner.hidden = false;
     }
@@ -70,7 +71,7 @@
       }
     }
 
-    if (!selected) selected = snapshot.modules.find(module => module.state === 'available')?.id || snapshot.modules[0]?.id;
+    if (!selected) { selected = snapshot.modules.find(module => ['available','scheduled'].includes(module.state))?.id || snapshot.modules[0]?.id; restoreDraft(); }
     document.querySelectorAll('[data-module]').forEach(button => {
       const module = snapshot.modules.find(item => item.id === button.dataset.module);
       button.className = `node node-${snapshot.modules.indexOf(module) + 1} ${module?.state || 'locked'}`;
@@ -95,124 +96,29 @@
     renderModule();
   }
 
-  const recipes = {
-    day_1: {
-      selfie: {
-        tag: 'Self-Portrait Couture',
-        guide: '1. Tap ➕ in Google Gemini to attach your photo. 2. Choose a transformation style below. 3. Gemini will recreate you with your exact likeness in high-fashion editorial aesthetics!',
-        presets: [
-          {
-            label: '✨ Met Gala Red Carpet Glamour',
-            text: 'Using the uploaded reference photo, maintain 100% of the woman\'s exact facial features, smile, eye shape, and recognizable likeness. Transform the setting into a dazzling Met Gala red carpet gala: wearing an exquisite bespoke golden silk gown with hand-embroidered floral beadwork and sheer tulle train, standing on an illuminated grand marble staircase, soft camera flashes reflecting, shot on 85mm f/1.4 portrait lens, cinematic editorial lighting, photorealistic 8k, flawless natural skin texture --ar 16:9'
-          },
-          {
-            label: '🥐 Parisian Balcony Golden Hour',
-            text: 'Preserve the exact facial structure and likeness of the woman in the uploaded reference photo. Transform into a chic Parisian editorial: wearing an ivory silk blazer and delicate layered gold necklaces, standing on a classic Haussmann balcony overlooking the Eiffel Tower at golden hour sunset, warm sunset glow rimming her hair, gentle evening breeze, Vogue Paris magazine cover quality, filmic warmth --ar 16:9'
-          },
-          {
-            label: '📸 Vogue Studio High-Key Fashion',
-            text: 'Retain the exact recognizable facial likeness of the woman in the image. High-end modern fashion studio photoshoot: wearing a structured tailored fuchsia satin trench coat, minimalist beige studio background with warm key-light sculpting, confident elegant gaze, sharp 85mm lens focus, high fashion magazine spread --ar 16:9'
-          }
-        ]
-      },
-      scratch: {
-        tag: 'Lens & Perspective',
-        guide: 'Formula: [Subject] + [Setting] + [Camera/Lens] + [Lighting Mood] + [Aspect Ratio]',
-        presets: [
-          { label: 'Cinematic Portrait (85mm)', text: 'Cinematic photograph of a cybernetic warrior wearing weathered brass armor, standing in a rain-slicked neon street, 85mm portrait lens, f/1.4 shallow depth of field, neon rim lighting reflecting off wet asphalt, 8k resolution, ultra-detailed --ar 16:9' },
-          { label: 'Atmospheric Wide (24mm)', text: 'Atmospheric environmental wide shot of an Afrofuturist observatory on a misty cliffside at dawn, 24mm wide angle lens, soft volumetric golden hour beams, cinematic composition --ar 16:9' },
-          { label: 'Dynamic Action Shot', text: 'Dynamic street-level action photograph of a high-speed hovercraft racing through a bustling night market, low angle camera perspective, motion blur in background, sharp subject clarity, cinematic --ar 21:9' }
-        ]
-      }
-    },
-    day_2: {
-      selfie: {
-        tag: 'Lighting & Atmosphere',
-        guide: '1. Attach your photo in Gemini. 2. Select a dramatic lighting atmosphere below to see volumetric rays and luxury reflections illuminate your likeness.',
-        presets: [
-          {
-            label: '🛥️ Monaco Sunset Yacht & Champagne',
-            text: 'Using the woman\'s face and likeness from the uploaded photo, recreate this scene on the teak wood deck of a private luxury mega-yacht in Monaco at twilight. Dressed in an emerald green backless satin gown holding a crystal champagne flute. Volumetric warm dusk lighting from luxury pendant lanterns, soft ocean mist reflection, hyper-realistic depth of field, 35mm cinematic film still --ar 16:9'
-          },
-          {
-            label: '⚡ Neo-Tokyo Cyberpunk Goddess',
-            text: 'Preserve the exact facial structure and likeness of the woman in the image. Transform into a high-tech cyberpunk beauty in rainy neo-Tokyo. Subtle glowing holographic floral accents tracing her cheekbone, iridescent leather trench coat, volumetric neon magenta and cyan street reflection lights, wet hair texture, 8k cinematic masterpiece --ar 16:9'
-          },
-          {
-            label: '🌅 Santorini Cliffside Infinity Pool',
-            text: 'Preserve the exact facial identity of the woman in the uploaded photo. Mediterranean luxury retreat: lounging by a cliffside white marble infinity pool overlooking the Aegean sea in Santorini at golden hour, sheer white linen beachwear, soft golden sunlight reflecting on sparkling water, ultra-photorealistic skin pores, sun-kissed natural glow --ar 16:9'
-          }
-        ]
-      },
-      scratch: {
-        tag: 'Lighting Physics',
-        guide: 'Formula: Macro/Subject + Volumetric Lighting + Caustics/Refraction + Material Textures',
-        presets: [
-          { label: 'Crystal & Water Caustics', text: 'Macro close-up photography of a translucent crystal orchid with morning dew drops, dramatic volumetric golden-hour backlighting, optical caustic refraction through water droplets, subsurface scattering, extreme tactile texture, dark moody bokeh background --ar 1:1' },
-          { label: 'Obsidian & Molten Gold', text: 'Sculptural macro shot of cracked black obsidian stone infused with glowing veins of molten liquid gold, intense specular highlights, volumetric smoke wisps, high contrast dramatic studio lighting --ar 16:9' },
-          { label: 'Neon Bioluminescence', text: 'Deep sea bioluminescent creature glowing with cyan and violet light pulses, soft volumetric underwater rays, ultra-fine microscopic surface textures, pitch-black ocean backdrop --ar 1:1' }
-        ]
-      }
-    },
-    day_3: {
-      selfie: {
-        tag: 'Character & Style Anchors',
-        guide: '1. Upload your portrait in Gemini. 2. Lock your facial features while transforming into timeless artistic and executive aesthetic personas.',
-        presets: [
-          {
-            label: '🌸 Renaissance Botanical Goddess',
-            text: 'Keep the woman\'s facial features and recognizable identity intact from the reference picture. Transform into a timeless Renaissance oil painting brought to life as a real photograph: surrounded by lush cascading white jasmine and blush roses, soft diffused cathedral window morning light, sheer ivory tulle fabric draping, glowing halo rim light, artistic masterpiece --ar 16:9'
-          },
-          {
-            label: '💼 Forbes 30-Under-30 Executive',
-            text: 'Using the subject\'s face from the uploaded photo, generate a power-portrait for a global magazine cover. Sharp tailored modern charcoal suit, minimalist luxury architectural loft background, studio key light with soft shadow sculpting, confident radiant expression, crisp sharp focus, 8k commercial photography --ar 16:9'
-          },
-          {
-            label: '💎 High-Jewelry Editorial',
-            text: 'Maintain the exact recognizable likeness of the woman in the image. High-jewelry commercial campaign close-up portrait: wearing a breathtaking emerald and diamond choker necklace with matching drop earrings, dramatic dark studio lighting with pin-point specular highlights on diamonds, soft matte skin tone, captivating eye contact --ar 16:9'
-          }
-        ]
-      },
-      scratch: {
-        tag: 'Character Anchor',
-        guide: 'Formula: Character Archetype + Unique Visual Anchor + Wardrobe Lock + Perspective Set',
-        presets: [
-          { label: 'Cyber Pilot with Gold Visor', text: 'Character concept portrait of Ace Pilot Maya, signature visual anchor: glowing hexagonal gold flight visor covering left eye, midnight-blue flight suit with orange warning stripes, studio key lighting, character consistency sheet --ar 16:9' },
-          { label: 'Nomadic Alchemist', text: 'Character portrait of an elderly desert alchemist, signature visual anchor: intricate silver spiral earrings and emerald-embroidered silk scarf, weathered sun-drenched facial textures, cinematic 50mm film still --ar 16:9' },
-          { label: 'Architect of Tomorrow', text: 'Studio editorial portrait of an avant-garde architect, signature visual anchor: asymmetric geometric titanium eyeglasses, structured charcoal wool coat, clean minimalist white studio lighting --ar 16:9' }
-        ]
-      }
-    },
-    day_4: {
-      selfie: {
-        tag: 'Commercial Capstone Showcase',
-        guide: '1. Attach your photo in Gemini. 2. Star in a world-class luxury perfume or runway commercial campaign worthy of high-converting showcase pages!',
-        presets: [
-          {
-            label: '🌟 Global Luxury Perfume Campaign',
-            text: 'Maintain 100% facial likeness and identity of the woman in the reference photo. She is the star of a global luxury perfume campaign. Floating under silk chiffon fabric with gentle wind movement, golden dust particles catching light in slow-motion capture, ultra-photorealistic skin pores, captivating confident gaze, shot by Annie Leibovitz, award-winning beauty campaign --ar 16:9'
-          },
-          {
-            label: '👑 Royal Velvet & Golden Filigree',
-            text: 'Using the exact facial features and likeness of the woman from the photo, generate a regal queen portrait: dressed in a deep royal crimson velvet cape lined with ermine fur, intricate filigree gold crown resting upon styled hair, ornate baroque palace hall backdrop, cinematic dramatic rim lighting, photorealistic 8k --ar 16:9'
-          },
-          {
-            label: '👠 Milan Fashion Week Finale',
-            text: 'Preserve the exact recognizable facial likeness of the woman in the uploaded photo. She is walking the finale of Milan Fashion Week: surrounded by blurred runway front-row audiences and camera flashes, wearing an architectural sculptural gown with metallic accents, confident commanding stride, telephoto 200mm fashion runway capture --ar 16:9'
-          }
-        ]
-      },
-      scratch: {
-        tag: 'Capstone Showcase',
-        guide: 'Formula: Hero Commercial Concept + Studio Lighting + Color Grading + Landing Page Ready',
-        presets: [
-          { label: 'Autonomous AI Neural Audio', text: 'Commercial hero visual of an autonomous AI neural headset made of matte titanium and frosted sea glass, floating above a minimalist black basalt pedestal, soft commercial studio diffusion, high-end editorial lighting, Hasselblad H6D clarity, landing page hero banner --ar 16:9' },
-          { label: 'Next-Gen Smart Footwear', text: 'Commercial editorial photograph of a futuristic aerodynamic sneaker made with bioluminescent mesh, dynamic floating angle, commercial advertising studio lighting, clean luxury gradient background --ar 16:9' },
-          { label: 'Eco-Living Smart Pod', text: 'Architectural hero exterior of a sustainable solar glass residential pod nestled in Scandinavian pine woods, dusk lighting, warm interior glow, architectural digest quality --ar 16:9' }
-        ]
-      }
-    }
+  const lessons = {
+    day_1: { goal: 'Build your first image prompt', time: '15–20 minutes', learn: 'A useful prompt names a subject, describes its setting, and specifies a visual style. Start simple so you can see what each part changes.', task: 'Generate one image. Change only the setting and generate again. Keep the subject and style the same.', question: 'What changed when you changed the setting? Which version communicates your idea better?', practice: 'Try three settings for the same subject. Compare the results without changing everything at once.', example: 'A local coffee shop, on a quiet Lagos street at sunrise, in a warm editorial photography style.' },
+    day_2: { goal: 'Control light and mood', time: '15–20 minutes', learn: 'Light direction, softness and colour change the feeling of an image. Keep your subject and composition constant when comparing lighting.', task: 'Reuse yesterday’s subject. Generate a soft daylight version and a dramatic side-lit version.', question: 'How did the two lighting choices change the mood or clarity?', practice: 'Try warm sunset light and cool overcast light. Describe which suits your intended audience.', example: 'Keep the subject, setting and composition unchanged. Replace the lighting with soft window light from the left and gentle shadows.' },
+    day_3: { goal: 'Keep a subject consistent', time: '20 minutes', learn: 'Describe a few stable visual anchors: colours, clothing, shape or distinctive details. Repeat those anchors, and use your earlier image as a reference if available. Exact identity preservation is not guaranteed.', task: 'Create two scenes featuring the same subject. Repeat its anchors and compare the outputs.', question: 'Which details stayed consistent? What drifted, and how would you improve your instructions?', practice: 'Try a third scene. Strengthen only the details that drifted.', example: 'The same small red delivery bicycle with a cream basket and round brass bell, first outside a bakery, then beside a park. Keep the bicycle design and colours consistent.' },
+    day_4: { goal: 'Refine a final portfolio image', time: '20–25 minutes', learn: 'Editing is a conversation. State what to preserve and request one specific change at a time. Judge each result against your original goal.', task: 'Choose an earlier image. Make two follow-up edits, then select your strongest version for a business, personal or creative use.', question: 'What were your two edits, what improved, and where would you use the final image?', practice: 'Create a landscape and square variation for different placements.', example: 'Keep the subject and its identity unchanged. Simplify the background and leave clear space on the right for a headline. Then make a second edit to soften the shadows.' }
   };
+  const recipes = Object.fromEntries(Object.entries(lessons).map(([id, lesson]) => [id, {
+    scratch: { tag: 'Build and compare', guide: 'Edit the example to reflect your own subject. Generate in Gemini, then return to record your observations.', presets: [{ label: 'Start with today’s example', text: lesson.example }] },
+    selfie: { tag: 'Optional reference photo', guide: 'In Gemini, attach a photo you have permission to use. Paste the prompt and describe what to keep. A photo is optional; you can use the creative track instead.', presets: [{ label: 'Adapt a reference photo', text: 'Using my attached reference image, preserve the subject’s recognizable features and natural appearance. ' + lesson.example }] }
+  }]));
+  function draftKey() { return 'meuseai-draft:' + (snapshot?.student_id || snapshot?.full_name || 'learner') + ':' + selected; }
+  function saveDraft() {
+    if (!selected || !snapshot) return;
+    try { localStorage.setItem(draftKey(), JSON.stringify({ prompt: $('gemini-prompt')?.value || '', submission: $('submission')?.value || '', reflection: $('reflection')?.value || '' })); } catch (_) { /* Storage can be disabled. */ }
+  }
+  function restoreDraft() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(draftKey()) || '{}');
+      if ($('gemini-prompt')) $('gemini-prompt').value = saved.prompt || '';
+      if ($('submission')) $('submission').value = saved.submission || '';
+      if ($('reflection')) $('reflection').value = saved.reflection || '';
+    } catch (_) { /* A missing or invalid draft must not block the lesson. */ }
+  }
 
   function updateSocialShare(dayNum) {
     if (!dayNum || !$('social-celebration')) return;
@@ -268,7 +174,7 @@
   function renderStudioForModule(module) {
     const studio = $('gemini-studio');
     if (!studio) return;
-    if (module.id.startsWith('day_') && module.state === 'available' && recipes[module.id]) {
+    if (module.id.startsWith('day_') && ['available','completed'].includes(module.state) && recipes[module.id]) {
       const dayData = recipes[module.id];
       const recipe = dayData[studioMode] || dayData.selfie || dayData.scratch;
       if ($('studio-recipe-tag')) $('studio-recipe-tag').textContent = recipe.tag;
@@ -282,7 +188,7 @@
           btn.className = 'chip-btn';
           btn.textContent = preset.label;
           btn.addEventListener('click', () => {
-            if ($('gemini-prompt')) $('gemini-prompt').value = preset.text;
+            if ($('gemini-prompt')) $('gemini-prompt').value = preset.text; saveDraft();
           });
           chipsContainer.append(btn);
         });
@@ -309,6 +215,24 @@
     $('module-help').textContent = module.state === 'locked' ? module.prerequisite : module.state === 'completed' ? 'Well done. Your progress has been saved.' : module.state === 'unlocked' ? 'Your Tier 1 access is active.' : 'Take your time. Your progress will be saved when the server confirms it.';
     $('submit-button').disabled = busy || stopped; $('checkout-button').disabled = busy || stopped;
 
+    const lesson = lessons[module.id];
+    const canRead = lesson && ['available','completed'].includes(module.state);
+    if ($('lesson-content')) {
+      $('lesson-content').hidden = !canRead;
+      if (canRead) {
+        for (const [id, value] of Object.entries({ 'lesson-goal': lesson.goal, 'lesson-time': lesson.time, 'lesson-learn': lesson.learn, 'lesson-task': lesson.task, 'reflection-question': lesson.question, 'lesson-practice': lesson.practice })) $(id).textContent = value;
+      }
+    }
+    if ($('saved-work')) {
+      $('saved-work').hidden = module.state !== 'completed';
+      $('saved-work-text').textContent = module.submission || 'Your completion is saved.';
+    }
+    if (module.state === 'scheduled') {
+      const date = new Date(module.unlocks_at);
+      const remaining = Math.max(0, date - Date.now());
+      $('module-help').textContent = `Next lesson opens ${date.toLocaleString()} (about ${Math.ceil(remaining / 3600000)} hours). Keep practising your completed lesson while you wait.`;
+      if (!remaining) scheduleRefresh();
+    }
     renderStudioForModule(module);
 
     // Social share rendering for completed module
@@ -323,7 +247,7 @@
 
   document.querySelectorAll('[data-module]').forEach(button => button.addEventListener('click', () => {
     if (busy || selected === button.dataset.module) return;
-    selected = button.dataset.module; $('submission').value = ''; if (snapshot) render();
+    saveDraft(); selected = button.dataset.module; restoreDraft(); if (snapshot) render();
   }));
 
   $('mode-selfie')?.addEventListener('click', () => {
@@ -332,7 +256,7 @@
     $('mode-scratch')?.classList.remove('active');
     const module = snapshot?.modules.find(item => item.id === selected);
     if (module) {
-      if ($('gemini-prompt')) $('gemini-prompt').value = '';
+      saveDraft(); if ($('gemini-prompt')) $('gemini-prompt').value = '';
       renderStudioForModule(module);
     }
   });
@@ -343,7 +267,7 @@
     $('mode-selfie')?.classList.remove('active');
     const module = snapshot?.modules.find(item => item.id === selected);
     if (module) {
-      if ($('gemini-prompt')) $('gemini-prompt').value = '';
+      saveDraft(); if ($('gemini-prompt')) $('gemini-prompt').value = '';
       renderStudioForModule(module);
     }
   });
@@ -355,31 +279,47 @@
     if (!module || module.state !== 'available' || !submission) return;
     busy = true; renderModule();
     try {
+      const reflection = $('reflection')?.value.trim() || '';
+      if (reflection.length < 20) throw new Error('Describe what you observed in at least 20 characters.');
       const dayNum = Number(module.id.slice(4));
-      await request('/api/v1/curriculum/complete', { method: 'POST', body: JSON.stringify({ day: dayNum, submission }) });
-      $('submission').value = ''; selected = null; await refresh();
+      await request('/api/v1/curriculum/complete', { method: 'POST', body: JSON.stringify({ day: dayNum, submission: submission + "\n\nReflection: " + reflection }) });
+      try { localStorage.removeItem(draftKey()); } catch (_) {}
+      $('submission').value = ''; if ($('reflection')) $('reflection').value = ''; selected = null; await refresh();
       updateSocialShare(dayNum);
     } catch (error) { notice(error.message); }
     finally { busy = false; renderModule(); }
   });
 
-  $('btn-open-gemini')?.addEventListener('click', () => {
-    const prompt = $('gemini-prompt')?.value || '';
-    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(prompt).catch(() => {});
-    }
-    if (typeof window !== 'undefined' && window.open) {
-      window.open('https://gemini.google.com/app', '_blank', 'noopener,noreferrer');
-    }
+  async function copyPrompt() {
+    const prompt = $('gemini-prompt')?.value.trim() || '';
     const note = $('studio-copied-note');
-    if (note) { note.hidden = false; setTimeout(() => { note.hidden = true; }, 4000); }
+    if (!prompt) { if (note) { note.hidden = false; note.textContent = 'Write or select a prompt first.'; } return; }
+    saveDraft();
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(prompt);
+      if (note) { note.hidden = false; note.textContent = 'Prompt copied. Open Gemini, paste into its message box, attach a reference photo if needed, and generate. Return here afterwards.'; }
+    } catch (_) {
+      $('gemini-prompt').focus(); $('gemini-prompt').select?.();
+      if (note) { note.hidden = false; note.textContent = 'Automatic copying was blocked. Select and copy the prompt manually, then open Gemini and paste it.'; }
+    }
+  }
+  $('btn-copy-prompt')?.addEventListener('click', copyPrompt);
+  $('btn-open-gemini')?.addEventListener('click', () => {
+    saveDraft();
+    window.open('https://gemini.google.com/app', '_blank', 'noopener,noreferrer');
   });
-
+  for (const id of ['gemini-prompt', 'submission', 'reflection']) $(id)?.addEventListener('input', saveDraft);
+  $('btn-clear-draft')?.addEventListener('click', () => {
+    for (const id of ['gemini-prompt', 'submission', 'reflection']) if ($(id)) $(id).value = '';
+    try { localStorage.removeItem(draftKey()); } catch (_) {}
+    notice('This lesson’s local draft was cleared. Submitted work is unchanged.');
+  });
   $('btn-use-prompt')?.addEventListener('click', () => {
     const prompt = $('gemini-prompt')?.value || '';
     if (prompt && $('submission')) {
       $('submission').value = prompt;
-      $('submission').focus();
+      $('submission').focus(); saveDraft();
     }
   });
 
@@ -440,6 +380,7 @@
     finally { busy = false; renderModule(); }
   });
 
+  $('resume-course')?.addEventListener('click', async () => { try { await request('/api/v1/curriculum/resume', {method:'POST',body:'{}'}); await refresh(); } catch (error) { notice(error.message); } });
   $('refresh-button').addEventListener('click', refresh);
   function connect() {
     if (stopped || stream) return;

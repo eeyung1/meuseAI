@@ -1,5 +1,7 @@
 # meuseAI: Complete Student Journey & Automation Blueprint (v2)
 
+**Implemented pacing policy:** Verification starts the course clock. Day 1 is immediate. Days 2, 3 and 4 require prior completion and open at 24, 48 and 72 hours respectively. Later profile edits do not reset this clock. The server, dashboard and email dispatcher enforce this policy. Completing a lesson early does not unlock the next lesson early. Late completion does not impose a new 24-hour delay. Completed lessons remain available for practice. Inactivity-paused students can explicitly resume; unsubscribed students are not silently resubscribed.
+
 Changes from v1 are marked inline as **[CHANGED]** or **[NEW]**, with a
 one-line reason, so you can see exactly what moved and why before you
 start building.
