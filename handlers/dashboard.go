@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/eeyung1/meuseAI/db"
@@ -16,6 +17,8 @@ import (
 	assets "github.com/eeyung1/meuseAI/static"
 	"github.com/eeyung1/meuseAI/telemetry"
 )
+
+var showcaseAssetName = regexp.MustCompile(`^day[1-4]-[1-3]\.(jpg|webp)$`)
 
 type DashboardIdentity func(*http.Request) (string, error)
 type Dashboard struct {
@@ -34,7 +37,19 @@ func (d *Dashboard) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/dashboard/me", d.Me)
 	mux.HandleFunc("GET /api/v1/telemetry/stream", d.Stream)
 	mux.HandleFunc("GET /dashboard", d.Page)
-	for _, name := range []string{"dashboard.css", "dashboard.js", "landing.css", "landing.js", "verify.js", "share.js", "admin.js"} {
+	mux.HandleFunc("GET /assets/showcase/{file}", func(w http.ResponseWriter, r *http.Request) {
+		file := r.PathValue("file")
+		if file != "manifest.json" && !showcaseAssetName.MatchString(file) {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if file == "manifest.json" {
+			w.Header().Set("Cache-Control", "no-store")
+		}
+		http.ServeFileFS(w, r, assets.Assets, "assets/showcase/"+file)
+	})
+	for _, name := range []string{"showcase.js", "dashboard.css", "dashboard.js", "landing.css", "landing.js", "verify.js", "share.js", "admin.js"} {
 		name := name
 		mux.HandleFunc("GET /assets/"+name, func(w http.ResponseWriter, r *http.Request) { http.ServeFileFS(w, r, assets.Assets, name) })
 	}
@@ -236,12 +251,12 @@ func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot,
 	baseNaira := 5000
 	result.Tier1PriceNaira = baseNaira - (baseNaira * discountPercent / 100)
 
-	tierDesc := "Turn your next idea into a live landing page. Tier 1 access: ₦5,000."
+	tierDesc := "Turn an image you created this week into a landing page for your business or project. Tier 1 access: ₦5,000. External tools may have separate charges."
 	if discountPercent > 0 {
-		tierDesc = fmt.Sprintf("Turn your next idea into a live landing page. Tier 1: ₦%d (%d%% XP discount applied from ₦5,000!)", result.Tier1PriceNaira, discountPercent)
+		tierDesc = fmt.Sprintf("Turn a course image into a landing page for your business or project. Tier 1: ₦%d (%d%% course discount from ₦5,000). External tools may have separate charges.", result.Tier1PriceNaira, discountPercent)
 	} else {
 		xpNeeded := 1000 - result.XP
-		tierDesc = fmt.Sprintf("Turn your next idea into a live landing page. Tier 1 access: ₦5,000. (Earn %d more XP for 10%% off!)", xpNeeded)
+		tierDesc = fmt.Sprintf("Turn a course image into a landing page for your business or project. Tier 1: ₦5,000; earn %d more XP for 10%% off. External tools may have separate charges.", xpNeeded)
 	}
 	result.Modules = append(result.Modules, DashboardModule{ID: "tier_1", Title: "Lovable landing pages", Description: tierDesc, State: tierState, Prerequisite: "Complete all four days"})
 	if result.Verified && !result.Unsubscribed {
