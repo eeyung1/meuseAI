@@ -28,3 +28,4 @@
     if (eyebrow) eyebrow.textContent = `DAY ${day} COMPLETED`;
   }
 })();
+

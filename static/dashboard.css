@@ -27,3 +27,19 @@
 .share-btn.whatsapp{background:#25D366;color:#fff}
 .copy-post-box{border-top:1px solid var(--border);padding-top:10px}
 
+/* STUDIO MODE TOGGLE */
+.studio-mode-toggle{display:flex;gap:6px;margin:8px 0 12px;background:var(--surface);padding:3px;border-radius:10px;border:1px solid var(--border)}
+.mode-pill{flex:1;background:transparent;border:0;color:var(--muted);font-size:11px;font-weight:750;padding:7px 10px;border-radius:7px;cursor:pointer;transition:all .2s;text-align:center}
+.mode-pill.active{background:var(--yellow);color:var(--bg);box-shadow:0 0 10px rgba(255,214,10,0.3)}
+
+/* SOCIAL LINK SUBMISSION */
+.share-link-submission-card{margin-top:14px;border-top:1px solid rgba(87,217,163,0.3);padding-top:12px}
+.share-link-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:13px;color:var(--text)}
+.share-link-form{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
+.share-link-form input{padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:11px}
+.share-link-form input:focus{outline:2px solid var(--yellow)}
+
+/* XP DISCOUNT BANNER */
+.discount-banner{background:linear-gradient(90deg,rgba(255,214,10,0.12) 0%,rgba(87,217,163,0.12) 100%);border:1px solid rgba(255,214,10,0.4);border-radius:10px;padding:10px 14px;margin-top:16px;font-size:12px;display:flex;align-items:center;gap:10px}
+.discount-banner strong{color:var(--yellow)}
+

@@ -54,3 +54,4 @@ test('share page handles day parameter without student name', () => {
   assert.equal(heading.textContent, 'Day 2 Mastered on meuseAI!');
   assert.match(body.textContent, /Volumetric Lighting & Texture Physics/);
 });
+

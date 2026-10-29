@@ -125,6 +125,18 @@ func (p *Payment) Checkout(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		eligible = eligible && complete && stage == "conversion_gate" && funnel == "free_week"
+		if eligible {
+			var studentXP int
+			_ = tx.QueryRowContext(r.Context(), "SELECT xp FROM students WHERE id=$1", id).Scan(&studentXP)
+			discountPercent := (studentXP / 2000) * 10
+			if discountPercent > 50 {
+				discountPercent = 50
+			}
+			if discountPercent > 0 {
+				discountKobo := (amount * int64(discountPercent)) / 100
+				amount = amount - discountKobo
+			}
+		}
 	} else {
 		eligible = eligible && ready && funnel == "tier_1_active"
 	}

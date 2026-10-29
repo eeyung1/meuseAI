@@ -27,10 +27,15 @@ func WithCurriculumStudent(ctx context.Context, studentID string) context.Contex
 	return context.WithValue(ctx, curriculumStudentKey{}, strings.TrimSpace(studentID))
 }
 
+type CurriculumIdentity func(*http.Request) (string, error)
+type AdminAuthorized func(*http.Request) bool
+
 // Curriculum implements completion-gated advancement through the free course.
 type Curriculum struct {
-	database *db.DB
-	now      func() time.Time
+	database        *db.DB
+	now             func() time.Time
+	identity        CurriculumIdentity
+	adminAuthorized AdminAuthorized
 }
 
 func NewCurriculum(database *db.DB) (*Curriculum, error) {
@@ -40,8 +45,18 @@ func NewCurriculum(database *db.DB) (*Curriculum, error) {
 	return &Curriculum{database: database, now: time.Now}, nil
 }
 
+func (h *Curriculum) WithAuth(identity CurriculumIdentity, adminAuthorized AdminAuthorized) *Curriculum {
+	h.identity = identity
+	h.adminAuthorized = adminAuthorized
+	return h
+}
+
 func (h *Curriculum) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/curriculum/complete", h.Complete)
+	mux.HandleFunc("POST /api/v1/curriculum/share-link", h.ShareLink)
+	mux.HandleFunc("GET /api/v1/curriculum/share-status", h.ShareStatus)
+	mux.HandleFunc("GET /api/v1/admin/social-shares", h.AdminListShares)
+	mux.HandleFunc("POST /api/v1/admin/social-shares/review", h.AdminReviewShare)
 }
 
 func curriculumJSON(w http.ResponseWriter, status int, value any) {
@@ -122,6 +137,11 @@ func (h *Curriculum) Complete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	studentID, ok := curriculumIdentity(r, input.StudentID)
+	if h.identity != nil {
+		if id, err := h.identity(r); err == nil && id != "" {
+			studentID, ok = id, true
+		}
+	}
 	input.Submission = strings.TrimSpace(input.Submission)
 	if !ok || input.Day < 1 || input.Day > 4 || input.Submission == "" || !utf8.ValidString(input.Submission) || utf8.RuneCountInString(input.Submission) > maxCurriculumSubmission {
 		curriculumError(w, http.StatusBadRequest, "student, day and prompt submission are required")
@@ -238,5 +258,279 @@ func (h *Curriculum) Complete(w http.ResponseWriter, r *http.Request) {
 	curriculumJSON(w, http.StatusOK, map[string]any{
 		"student_id": studentID, "completed_day": input.Day, "current_stage": nextStage,
 		"xp": xp + curriculumXPAward, "xp_awarded": curriculumXPAward, "streak_days": newStreak,
+	})
+}
+
+// ShareLink records a public social media link submission for a completed day.
+func (h *Curriculum) ShareLink(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var input struct {
+		StudentID string `json:"student_id"`
+		Day       int    `json:"day"`
+		ShareURL  string `json:"share_url"`
+		Platform  string `json:"platform"`
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil {
+		curriculumError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	studentID, ok := curriculumIdentity(r, input.StudentID)
+	if h.identity != nil {
+		if id, err := h.identity(r); err == nil && id != "" {
+			studentID, ok = id, true
+		}
+	}
+	if !ok || input.Day < 1 || input.Day > 4 {
+		curriculumError(w, http.StatusBadRequest, "valid student and day between 1 and 4 required")
+		return
+	}
+	shareURL := strings.TrimSpace(input.ShareURL)
+	if shareURL == "" || len(shareURL) > 1024 || !(strings.HasPrefix(shareURL, "http://") || strings.HasPrefix(shareURL, "https://")) {
+		curriculumError(w, http.StatusBadRequest, "valid public post URL required (http/https)")
+		return
+	}
+	platform := strings.ToLower(strings.TrimSpace(input.Platform))
+	if platform == "" {
+		platform = "social"
+	}
+
+	tx, err := h.database.BeginTx(r.Context(), nil)
+	if err != nil {
+		curriculumError(w, http.StatusServiceUnavailable, "submission unavailable")
+		return
+	}
+	defer tx.Rollback()
+
+	// Ensure the student completed this day's curriculum exercise first
+	var completed bool
+	err = tx.QueryRowContext(r.Context(), "SELECT completed FROM student_progress WHERE student_id=$1 AND day_number=$2", studentID, input.Day).Scan(&completed)
+	if err != nil || !completed {
+		curriculumError(w, http.StatusForbidden, "exercise must be completed before submitting social share for bonus XP")
+		return
+	}
+
+	// Check if share link already submitted for this day
+	var existingStatus string
+	err = tx.QueryRowContext(r.Context(), "SELECT status FROM social_shares WHERE student_id=$1 AND day_number=$2", studentID, input.Day).Scan(&existingStatus)
+	if err == nil {
+		curriculumError(w, http.StatusConflict, "a social share link has already been submitted for this day")
+		return
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		curriculumError(w, http.StatusServiceUnavailable, "submission unavailable")
+		return
+	}
+
+	now := h.now().UTC()
+	_, err = tx.ExecContext(r.Context(), `INSERT INTO social_shares (student_id, day_number, share_url, platform, status, xp_awarded, created_at)
+		VALUES ($1, $2, $3, $4, 'pending', 0, $5)`, studentID, input.Day, shareURL, platform, now)
+	if err != nil {
+		curriculumError(w, http.StatusServiceUnavailable, "submission unavailable")
+		return
+	}
+
+	details, _ := json.Marshal(map[string]any{"day": input.Day, "platform": platform, "url": shareURL})
+	_, _ = tx.ExecContext(r.Context(), "INSERT INTO activity_logs (student_id, event_type, details) VALUES ($1, 'social_share_submitted', $2)", studentID, string(details))
+
+	if err = tx.Commit(); err != nil {
+		curriculumError(w, http.StatusServiceUnavailable, "submission unavailable")
+		return
+	}
+
+	curriculumJSON(w, http.StatusOK, map[string]any{
+		"status":    "pending",
+		"day":       input.Day,
+		"message":   "Post link submitted! Your +200 bonus XP will be awarded once verified by admin.",
+		"share_url": shareURL,
+		"platform":  platform,
+	})
+}
+
+// ShareStatus returns all social share submissions and review statuses for the authenticated student.
+func (h *Curriculum) ShareStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	studentID, ok := curriculumIdentity(r, "")
+	if h.identity != nil {
+		if id, err := h.identity(r); err == nil && id != "" {
+			studentID, ok = id, true
+		}
+	}
+	if !ok {
+		curriculumError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	rows, err := h.database.QueryContext(r.Context(), `SELECT day_number, share_url, platform, status, xp_awarded, created_at, reviewed_at
+		FROM social_shares WHERE student_id=$1 ORDER BY day_number ASC`, studentID)
+	if err != nil {
+		curriculumError(w, http.StatusServiceUnavailable, "unable to fetch share status")
+		return
+	}
+	defer rows.Close()
+
+	type shareItem struct {
+		DayNumber  int        `json:"day"`
+		ShareURL   string     `json:"share_url"`
+		Platform   string     `json:"platform"`
+		Status     string     `json:"status"`
+		XPAwarded  int        `json:"xp_awarded"`
+		CreatedAt  time.Time  `json:"created_at"`
+		ReviewedAt *time.Time `json:"reviewed_at,omitempty"`
+	}
+	shares := []shareItem{}
+	for rows.Next() {
+		var s shareItem
+		var reviewed sql.NullTime
+		if err := rows.Scan(&s.DayNumber, &s.ShareURL, &s.Platform, &s.Status, &s.XPAwarded, &s.CreatedAt, &reviewed); err == nil {
+			if reviewed.Valid {
+				s.ReviewedAt = &reviewed.Time
+			}
+			shares = append(shares, s)
+		}
+	}
+	curriculumJSON(w, http.StatusOK, map[string]any{"shares": shares})
+}
+
+// AdminListShares returns all submitted social shares for admin verification.
+func (h *Curriculum) AdminListShares(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if h.adminAuthorized == nil || !h.adminAuthorized(r) {
+		curriculumError(w, http.StatusUnauthorized, "admin authorization required")
+		return
+	}
+	statusFilter := strings.TrimSpace(r.URL.Query().Get("status"))
+	query := `SELECT s.id, s.student_id, st.full_name, st.email, s.day_number, s.share_url, s.platform, s.status, s.xp_awarded, s.created_at
+		FROM social_shares s
+		JOIN students st ON st.id = s.student_id`
+	var args []any
+	if statusFilter != "" {
+		query += " WHERE s.status = $1"
+		args = append(args, statusFilter)
+	}
+	query += " ORDER BY s.id DESC LIMIT 100"
+
+	rows, err := h.database.QueryContext(r.Context(), query, args...)
+	if err != nil {
+		curriculumError(w, http.StatusServiceUnavailable, "unable to list shares")
+		return
+	}
+	defer rows.Close()
+
+	type adminShareItem struct {
+		ID           int64     `json:"id"`
+		StudentID    string    `json:"student_id"`
+		StudentName  string    `json:"student_name"`
+		StudentEmail string    `json:"student_email"`
+		DayNumber    int       `json:"day"`
+		ShareURL     string    `json:"share_url"`
+		Platform     string    `json:"platform"`
+		Status       string    `json:"status"`
+		XPAwarded    int       `json:"xp_awarded"`
+		CreatedAt    time.Time `json:"created_at"`
+	}
+	items := []adminShareItem{}
+	for rows.Next() {
+		var item adminShareItem
+		if err := rows.Scan(&item.ID, &item.StudentID, &item.StudentName, &item.StudentEmail, &item.DayNumber, &item.ShareURL, &item.Platform, &item.Status, &item.XPAwarded, &item.CreatedAt); err == nil {
+			items = append(items, item)
+		}
+	}
+	curriculumJSON(w, http.StatusOK, map[string]any{"shares": items})
+}
+
+// AdminReviewShare updates the approval status of a student's social share and grants 200 XP if approved.
+func (h *Curriculum) AdminReviewShare(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if h.adminAuthorized == nil || !h.adminAuthorized(r) {
+		curriculumError(w, http.StatusUnauthorized, "admin authorization required")
+		return
+	}
+	var input struct {
+		ShareID int64  `json:"share_id"`
+		Action  string `json:"action"` // "approve" or "reject"
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1024)
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		curriculumError(w, http.StatusBadRequest, "invalid review payload")
+		return
+	}
+	input.Action = strings.ToLower(strings.TrimSpace(input.Action))
+	if input.ShareID <= 0 || (input.Action != "approve" && input.Action != "reject") {
+		curriculumError(w, http.StatusBadRequest, "valid share_id and action (approve/reject) required")
+		return
+	}
+
+	tx, err := h.database.BeginTx(r.Context(), nil)
+	if err != nil {
+		curriculumError(w, http.StatusServiceUnavailable, "review unavailable")
+		return
+	}
+	defer tx.Rollback()
+
+	var studentID, currentStatus string
+	var dayNumber int
+	err = tx.QueryRowContext(r.Context(), `SELECT student_id, day_number, status FROM social_shares WHERE id = $1`, input.ShareID).Scan(&studentID, &dayNumber, &currentStatus)
+	if errors.Is(err, sql.ErrNoRows) {
+		curriculumError(w, http.StatusNotFound, "share not found")
+		return
+	}
+	if err != nil {
+		curriculumError(w, http.StatusServiceUnavailable, "review unavailable")
+		return
+	}
+	if currentStatus != "pending" {
+		curriculumError(w, http.StatusConflict, "share has already been reviewed")
+		return
+	}
+
+	now := h.now().UTC()
+	xpToAward := 0
+	newStatus := "rejected"
+	if input.Action == "approve" {
+		xpToAward = 200
+		newStatus = "approved"
+		// Credit the 200 XP to the student
+		_, err = tx.ExecContext(r.Context(), "UPDATE students SET xp = xp + $1, updated_at = $2 WHERE id = $3", xpToAward, now, studentID)
+		if err != nil {
+			curriculumError(w, http.StatusServiceUnavailable, "review unavailable")
+			return
+		}
+		details, _ := json.Marshal(map[string]any{"day": dayNumber, "xp_awarded": xpToAward, "share_id": input.ShareID})
+		_, _ = tx.ExecContext(r.Context(), "INSERT INTO activity_logs (student_id, event_type, details) VALUES ($1, 'social_share_approved', $2)", studentID, string(details))
+	} else {
+		details, _ := json.Marshal(map[string]any{"day": dayNumber, "share_id": input.ShareID})
+		_, _ = tx.ExecContext(r.Context(), "INSERT INTO activity_logs (student_id, event_type, details) VALUES ($1, 'social_share_rejected', $2)", studentID, string(details))
+	}
+
+	_, err = tx.ExecContext(r.Context(), "UPDATE social_shares SET status = $1, xp_awarded = $2, reviewed_at = $3 WHERE id = $4", newStatus, xpToAward, now, input.ShareID)
+	if err != nil {
+		curriculumError(w, http.StatusServiceUnavailable, "review unavailable")
+		return
+	}
+
+	if err = tx.Commit(); err != nil {
+		curriculumError(w, http.StatusServiceUnavailable, "review unavailable")
+		return
+	}
+
+	curriculumJSON(w, http.StatusOK, map[string]any{
+		"share_id":   input.ShareID,
+		"status":     newStatus,
+		"xp_awarded": xpToAward,
 	})
 }

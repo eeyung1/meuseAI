@@ -33,7 +33,7 @@ func (d *Dashboard) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/dashboard/me", d.Me)
 	mux.HandleFunc("GET /api/v1/telemetry/stream", d.Stream)
 	mux.HandleFunc("GET /dashboard", d.Page)
-	for _, name := range []string{"dashboard.css", "dashboard.js", "landing.css", "landing.js", "verify.js", "share.js"} {
+	for _, name := range []string{"dashboard.css", "dashboard.js", "landing.css", "landing.js", "verify.js", "share.js", "admin.js"} {
 		name := name
 		mux.HandleFunc("GET /assets/"+name, func(w http.ResponseWriter, r *http.Request) { http.ServeFileFS(w, r, assets.Assets, name) })
 	}
@@ -65,20 +65,30 @@ type DashboardActivity struct {
 	Title string    `json:"title"`
 	At    time.Time `json:"at"`
 }
+type DashboardShare struct {
+	DayNumber int    `json:"day"`
+	ShareURL  string `json:"share_url"`
+	Platform  string `json:"platform"`
+	Status    string `json:"status"`
+	XPAwarded int    `json:"xp_awarded"`
+}
 type DashboardSnapshot struct {
-	Name         string              `json:"full_name"`
-	XP           int                 `json:"xp"`
-	Streak       int                 `json:"streak_days"`
-	Stage        string              `json:"current_stage"`
-	Funnel       string              `json:"funnel_tier"`
-	Engagement   string              `json:"engagement_status"`
-	Verified     bool                `json:"email_verified"`
-	Unsubscribed bool                `json:"unsubscribed"`
-	Tier2Ready   bool                `json:"tier_2_ready"`
-	Rank         int                 `json:"rank"`
-	Modules      []DashboardModule   `json:"modules"`
-	Leaderboard  []DashboardPeer     `json:"leaderboard"`
-	Activity     []DashboardActivity `json:"activity"`
+	Name            string              `json:"full_name"`
+	XP              int                 `json:"xp"`
+	Streak          int                 `json:"streak_days"`
+	Stage           string              `json:"current_stage"`
+	Funnel          string              `json:"funnel_tier"`
+	Engagement      string              `json:"engagement_status"`
+	Verified        bool                `json:"email_verified"`
+	Unsubscribed    bool                `json:"unsubscribed"`
+	Tier2Ready      bool                `json:"tier_2_ready"`
+	Rank            int                 `json:"rank"`
+	DiscountPercent int                 `json:"discount_percent"`
+	Tier1PriceNaira int                 `json:"tier_1_price_naira"`
+	SocialShares    []DashboardShare    `json:"social_shares"`
+	Modules         []DashboardModule   `json:"modules"`
+	Leaderboard     []DashboardPeer     `json:"leaderboard"`
+	Activity        []DashboardActivity `json:"activity"`
 }
 
 func dashboardJSON(w http.ResponseWriter, status int, value any) {
@@ -129,7 +139,7 @@ func (d *Dashboard) Stream(w http.ResponseWriter, r *http.Request) {
 	d.hub.Serve(w, r, id)
 }
 func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot, error) {
-	result := DashboardSnapshot{Modules: []DashboardModule{}, Leaderboard: []DashboardPeer{}, Activity: []DashboardActivity{}}
+	result := DashboardSnapshot{Modules: []DashboardModule{}, Leaderboard: []DashboardPeer{}, Activity: []DashboardActivity{}, SocialShares: []DashboardShare{}}
 	tx, err := d.database.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true})
 	if err != nil {
 		return result, err
@@ -141,6 +151,19 @@ func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot,
 		return result, err
 	}
 	result.Unsubscribed = unsubscribed.Valid
+
+	// Query social shares
+	sRows, sErr := tx.QueryContext(ctx, "SELECT day_number, share_url, platform, status, xp_awarded FROM social_shares WHERE student_id=$1 ORDER BY day_number ASC", id)
+	if sErr == nil {
+		for sRows.Next() {
+			var s DashboardShare
+			if scanErr := sRows.Scan(&s.DayNumber, &s.ShareURL, &s.Platform, &s.Status, &s.XPAwarded); scanErr == nil {
+				result.SocialShares = append(result.SocialShares, s)
+			}
+		}
+		sRows.Close()
+	}
+
 	var completed [4]bool
 	rows, err := tx.QueryContext(ctx, "SELECT day_number,completed FROM student_progress WHERE student_id=$1", id)
 	if err != nil {
@@ -186,7 +209,23 @@ func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot,
 	} else if active && previous && result.Stage == "conversion_gate" && result.Funnel == "free_week" {
 		tierState = "available"
 	}
-	result.Modules = append(result.Modules, DashboardModule{ID: "tier_1", Title: "Lovable landing pages", Description: "Turn your next idea into a live landing page. Tier 1 access: ₦5,000.", State: tierState, Prerequisite: "Complete all four days"})
+
+	discountPercent := (result.XP / 2000) * 10
+	if discountPercent > 50 {
+		discountPercent = 50
+	}
+	result.DiscountPercent = discountPercent
+	baseNaira := 5000
+	result.Tier1PriceNaira = baseNaira - (baseNaira * discountPercent / 100)
+
+	tierDesc := "Turn your next idea into a live landing page. Tier 1 access: ₦5,000."
+	if discountPercent > 0 {
+		tierDesc = fmt.Sprintf("Turn your next idea into a live landing page. Tier 1: ₦%d (%d%% XP discount applied from ₦5,000!)", result.Tier1PriceNaira, discountPercent)
+	} else {
+		xpNeeded := 2000 - (result.XP % 2000)
+		tierDesc = fmt.Sprintf("Turn your next idea into a live landing page. Tier 1 access: ₦5,000. (Earn %d more XP for 10%% off!)", xpNeeded)
+	}
+	result.Modules = append(result.Modules, DashboardModule{ID: "tier_1", Title: "Lovable landing pages", Description: tierDesc, State: tierState, Prerequisite: "Complete all four days"})
 	if result.Verified && !result.Unsubscribed {
 		if err = tx.QueryRowContext(ctx, "SELECT COUNT(*)+1 FROM students WHERE email_verified=TRUE AND unsubscribed_at IS NULL AND xp>$1", result.XP).Scan(&result.Rank); err != nil {
 			return result, err
@@ -246,6 +285,12 @@ func dashboardEventTitle(event string) string {
 		return "Email verified"
 	case "complete_day", "day_completed", "complete":
 		return "Learning progress updated"
+	case "social_share_submitted":
+		return "Submitted social share link for review"
+	case "social_share_approved":
+		return "Social share confirmed (+200 XP awarded!)"
+	case "social_share_rejected":
+		return "Social share review completed"
 	case "payment_success":
 		return "Payment confirmed"
 	case "lovable_provisioning_requested":

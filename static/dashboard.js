@@ -4,6 +4,9 @@
   const $ = id => document.getElementById(id);
   let snapshot = null, selected = null, stream = null, refreshTimer = null;
   let loading = false, refreshAgain = false, stopped = false, busy = false;
+  let studioMode = 'selfie'; // 'selfie' | 'scratch'
+  let activeCelebrationDay = null;
+
   const labels = { available: 'Available now', completed: 'Completed', locked: 'Locked', unlocked: 'Unlocked' };
   function notice(message) { $('notice').hidden = !message; $('notice').textContent = message || ''; }
   function connection(text, live = false) { $('connection').textContent = text; $('connection').parentElement.classList.toggle('live', live); }
@@ -40,6 +43,33 @@
     $('completed-count').textContent = `${done} / 4 days`;
     $('progress-percent').textContent = `${done * 25}%`;
     $('progress-ring').style.strokeDashoffset = String(100 - done * 25);
+
+    // XP Discount Tracker
+    const discountBanner = $('xp-discount-banner');
+    const discountText = $('discount-banner-text');
+    if (discountBanner && discountText) {
+      const xp = snapshot.xp || 0;
+      const discount = snapshot.discount_percent || 0;
+      const price = snapshot.tier_1_price_naira || 5000;
+      if (discount > 0) {
+        discountText.textContent = `🎉 ${discount}% Course Discount Unlocked (${Number(xp).toLocaleString()} XP)! Tier 1 is ₦${Number(price).toLocaleString()} instead of ₦5,000.`;
+      } else {
+        const needed = 2000 - (xp % 2000);
+        discountText.textContent = `💎 ${Number(xp).toLocaleString()} XP Earned · Reach 2,000 XP (need ${needed} more) to unlock 10% OFF Tier 1 (Pay ₦4,500)!`;
+      }
+      discountBanner.hidden = false;
+    }
+
+    if ($('checkout-button')) {
+      const price = snapshot.tier_1_price_naira || 5000;
+      const discount = snapshot.discount_percent || 0;
+      if (discount > 0) {
+        $('checkout-button').textContent = `Unlock Tier 1 · ₦${Number(price).toLocaleString()} (${discount}% XP Discount!)`;
+      } else {
+        $('checkout-button').textContent = 'Continue with Tier 1 · ₦5,000';
+      }
+    }
+
     if (!selected) selected = snapshot.modules.find(module => module.state === 'available')?.id || snapshot.modules[0]?.id;
     document.querySelectorAll('[data-module]').forEach(button => {
       const module = snapshot.modules.find(item => item.id === button.dataset.module);
@@ -64,46 +94,126 @@
     if (!snapshot.leaderboard.length) { const li = document.createElement('li'); li.textContent = 'Your cohort is getting started.'; $('leaderboard').append(li); }
     renderModule();
   }
+
   const recipes = {
     day_1: {
-      tag: 'Lens & Perspective',
-      guide: 'Formula: [Subject] + [Setting] + [Camera/Lens] + [Lighting Mood] + [Aspect Ratio]',
-      presets: [
-        { label: 'Cinematic Portrait (85mm)', text: 'Cinematic photograph of a cybernetic warrior wearing weathered brass armor, standing in a rain-slicked neon street, 85mm portrait lens, f/1.4 shallow depth of field, neon rim lighting reflecting off wet asphalt, 8k resolution, ultra-detailed --ar 16:9' },
-        { label: 'Atmospheric Wide (24mm)', text: 'Atmospheric environmental wide shot of an Afrofuturist observatory on a misty cliffside at dawn, 24mm wide angle lens, soft volumetric golden hour beams, cinematic composition --ar 16:9' },
-        { label: 'Dynamic Action Shot', text: 'Dynamic street-level action photograph of a high-speed hovercraft racing through a bustling night market, low angle camera perspective, motion blur in background, sharp subject clarity, cinematic --ar 21:9' }
-      ]
+      selfie: {
+        tag: 'Self-Portrait Couture',
+        guide: '1. Tap ➕ in Google Gemini to attach your photo. 2. Choose a transformation style below. 3. Gemini will recreate you with your exact likeness in high-fashion editorial aesthetics!',
+        presets: [
+          {
+            label: '✨ Met Gala Red Carpet Glamour',
+            text: 'Using the uploaded reference photo, maintain 100% of the woman\'s exact facial features, smile, eye shape, and recognizable likeness. Transform the setting into a dazzling Met Gala red carpet gala: wearing an exquisite bespoke golden silk gown with hand-embroidered floral beadwork and sheer tulle train, standing on an illuminated grand marble staircase, soft camera flashes reflecting, shot on 85mm f/1.4 portrait lens, cinematic editorial lighting, photorealistic 8k, flawless natural skin texture --ar 16:9'
+          },
+          {
+            label: '🥐 Parisian Balcony Golden Hour',
+            text: 'Preserve the exact facial structure and likeness of the woman in the uploaded reference photo. Transform into a chic Parisian editorial: wearing an ivory silk blazer and delicate layered gold necklaces, standing on a classic Haussmann balcony overlooking the Eiffel Tower at golden hour sunset, warm sunset glow rimming her hair, gentle evening breeze, Vogue Paris magazine cover quality, filmic warmth --ar 16:9'
+          },
+          {
+            label: '📸 Vogue Studio High-Key Fashion',
+            text: 'Retain the exact recognizable facial likeness of the woman in the image. High-end modern fashion studio photoshoot: wearing a structured tailored fuchsia satin trench coat, minimalist beige studio background with warm key-light sculpting, confident elegant gaze, sharp 85mm lens focus, high fashion magazine spread --ar 16:9'
+          }
+        ]
+      },
+      scratch: {
+        tag: 'Lens & Perspective',
+        guide: 'Formula: [Subject] + [Setting] + [Camera/Lens] + [Lighting Mood] + [Aspect Ratio]',
+        presets: [
+          { label: 'Cinematic Portrait (85mm)', text: 'Cinematic photograph of a cybernetic warrior wearing weathered brass armor, standing in a rain-slicked neon street, 85mm portrait lens, f/1.4 shallow depth of field, neon rim lighting reflecting off wet asphalt, 8k resolution, ultra-detailed --ar 16:9' },
+          { label: 'Atmospheric Wide (24mm)', text: 'Atmospheric environmental wide shot of an Afrofuturist observatory on a misty cliffside at dawn, 24mm wide angle lens, soft volumetric golden hour beams, cinematic composition --ar 16:9' },
+          { label: 'Dynamic Action Shot', text: 'Dynamic street-level action photograph of a high-speed hovercraft racing through a bustling night market, low angle camera perspective, motion blur in background, sharp subject clarity, cinematic --ar 21:9' }
+        ]
+      }
     },
     day_2: {
-      tag: 'Lighting Physics',
-      guide: 'Formula: Macro/Subject + Volumetric Lighting + Caustics/Refraction + Material Textures',
-      presets: [
-        { label: 'Crystal & Water Caustics', text: 'Macro close-up photography of a translucent crystal orchid with morning dew drops, dramatic volumetric golden-hour backlighting, optical caustic refraction through water droplets, subsurface scattering, extreme tactile texture, dark moody bokeh background --ar 1:1' },
-        { label: 'Obsidian & Molten Gold', text: 'Sculptural macro shot of cracked black obsidian stone infused with glowing veins of molten liquid gold, intense specular highlights, volumetric smoke wisps, high contrast dramatic studio lighting --ar 16:9' },
-        { label: 'Neon Bioluminescence', text: 'Deep sea bioluminescent creature glowing with cyan and violet light pulses, soft volumetric underwater rays, ultra-fine microscopic surface textures, pitch-black ocean backdrop --ar 1:1' }
-      ]
+      selfie: {
+        tag: 'Lighting & Atmosphere',
+        guide: '1. Attach your photo in Gemini. 2. Select a dramatic lighting atmosphere below to see volumetric rays and luxury reflections illuminate your likeness.',
+        presets: [
+          {
+            label: '🛥️ Monaco Sunset Yacht & Champagne',
+            text: 'Using the woman\'s face and likeness from the uploaded photo, recreate this scene on the teak wood deck of a private luxury mega-yacht in Monaco at twilight. Dressed in an emerald green backless satin gown holding a crystal champagne flute. Volumetric warm dusk lighting from luxury pendant lanterns, soft ocean mist reflection, hyper-realistic depth of field, 35mm cinematic film still --ar 16:9'
+          },
+          {
+            label: '⚡ Neo-Tokyo Cyberpunk Goddess',
+            text: 'Preserve the exact facial structure and likeness of the woman in the image. Transform into a high-tech cyberpunk beauty in rainy neo-Tokyo. Subtle glowing holographic floral accents tracing her cheekbone, iridescent leather trench coat, volumetric neon magenta and cyan street reflection lights, wet hair texture, 8k cinematic masterpiece --ar 16:9'
+          },
+          {
+            label: '🌅 Santorini Cliffside Infinity Pool',
+            text: 'Preserve the exact facial identity of the woman in the uploaded photo. Mediterranean luxury retreat: lounging by a cliffside white marble infinity pool overlooking the Aegean sea in Santorini at golden hour, sheer white linen beachwear, soft golden sunlight reflecting on sparkling water, ultra-photorealistic skin pores, sun-kissed natural glow --ar 16:9'
+          }
+        ]
+      },
+      scratch: {
+        tag: 'Lighting Physics',
+        guide: 'Formula: Macro/Subject + Volumetric Lighting + Caustics/Refraction + Material Textures',
+        presets: [
+          { label: 'Crystal & Water Caustics', text: 'Macro close-up photography of a translucent crystal orchid with morning dew drops, dramatic volumetric golden-hour backlighting, optical caustic refraction through water droplets, subsurface scattering, extreme tactile texture, dark moody bokeh background --ar 1:1' },
+          { label: 'Obsidian & Molten Gold', text: 'Sculptural macro shot of cracked black obsidian stone infused with glowing veins of molten liquid gold, intense specular highlights, volumetric smoke wisps, high contrast dramatic studio lighting --ar 16:9' },
+          { label: 'Neon Bioluminescence', text: 'Deep sea bioluminescent creature glowing with cyan and violet light pulses, soft volumetric underwater rays, ultra-fine microscopic surface textures, pitch-black ocean backdrop --ar 1:1' }
+        ]
+      }
     },
     day_3: {
-      tag: 'Character Anchor',
-      guide: 'Formula: Character Archetype + Unique Visual Anchor + Wardrobe Lock + Perspective Set',
-      presets: [
-        { label: 'Cyber Pilot with Gold Visor', text: 'Character concept portrait of Ace Pilot Maya, signature visual anchor: glowing hexagonal gold flight visor covering left eye, midnight-blue flight suit with orange warning stripes, studio key lighting, character consistency sheet --ar 16:9' },
-        { label: 'Nomadic Alchemist', text: 'Character portrait of an elderly desert alchemist, signature visual anchor: intricate silver spiral earrings and emerald-embroidered silk scarf, weathered sun-drenched facial textures, cinematic 50mm film still --ar 16:9' },
-        { label: 'Architect of Tomorrow', text: 'Studio editorial portrait of an avant-garde architect, signature visual anchor: asymmetric geometric titanium eyeglasses, structured charcoal wool coat, clean minimalist white studio lighting --ar 16:9' }
-      ]
+      selfie: {
+        tag: 'Character & Style Anchors',
+        guide: '1. Upload your portrait in Gemini. 2. Lock your facial features while transforming into timeless artistic and executive aesthetic personas.',
+        presets: [
+          {
+            label: '🌸 Renaissance Botanical Goddess',
+            text: 'Keep the woman\'s facial features and recognizable identity intact from the reference picture. Transform into a timeless Renaissance oil painting brought to life as a real photograph: surrounded by lush cascading white jasmine and blush roses, soft diffused cathedral window morning light, sheer ivory tulle fabric draping, glowing halo rim light, artistic masterpiece --ar 16:9'
+          },
+          {
+            label: '💼 Forbes 30-Under-30 Executive',
+            text: 'Using the subject\'s face from the uploaded photo, generate a power-portrait for a global magazine cover. Sharp tailored modern charcoal suit, minimalist luxury architectural loft background, studio key light with soft shadow sculpting, confident radiant expression, crisp sharp focus, 8k commercial photography --ar 16:9'
+          },
+          {
+            label: '💎 High-Jewelry Editorial',
+            text: 'Maintain the exact recognizable likeness of the woman in the image. High-jewelry commercial campaign close-up portrait: wearing a breathtaking emerald and diamond choker necklace with matching drop earrings, dramatic dark studio lighting with pin-point specular highlights on diamonds, soft matte skin tone, captivating eye contact --ar 16:9'
+          }
+        ]
+      },
+      scratch: {
+        tag: 'Character Anchor',
+        guide: 'Formula: Character Archetype + Unique Visual Anchor + Wardrobe Lock + Perspective Set',
+        presets: [
+          { label: 'Cyber Pilot with Gold Visor', text: 'Character concept portrait of Ace Pilot Maya, signature visual anchor: glowing hexagonal gold flight visor covering left eye, midnight-blue flight suit with orange warning stripes, studio key lighting, character consistency sheet --ar 16:9' },
+          { label: 'Nomadic Alchemist', text: 'Character portrait of an elderly desert alchemist, signature visual anchor: intricate silver spiral earrings and emerald-embroidered silk scarf, weathered sun-drenched facial textures, cinematic 50mm film still --ar 16:9' },
+          { label: 'Architect of Tomorrow', text: 'Studio editorial portrait of an avant-garde architect, signature visual anchor: asymmetric geometric titanium eyeglasses, structured charcoal wool coat, clean minimalist white studio lighting --ar 16:9' }
+        ]
+      }
     },
     day_4: {
-      tag: 'Capstone Showcase',
-      guide: 'Formula: Hero Commercial Concept + Studio Lighting + Color Grading + Landing Page Ready',
-      presets: [
-        { label: 'Autonomous AI Neural Audio', text: 'Commercial hero visual of an autonomous AI neural headset made of matte titanium and frosted sea glass, floating above a minimalist black basalt pedestal, soft commercial studio diffusion, high-end editorial lighting, Hasselblad H6D clarity, landing page hero banner --ar 16:9' },
-        { label: 'Next-Gen Smart Footwear', text: 'Commercial editorial photograph of a futuristic aerodynamic sneaker made with bioluminescent mesh, dynamic floating angle, commercial advertising studio lighting, clean luxury gradient background --ar 16:9' },
-        { label: 'Eco-Living Smart Pod', text: 'Architectural hero exterior of a sustainable solar glass residential pod nestled in Scandinavian pine woods, dusk lighting, warm interior glow, architectural digest quality --ar 16:9' }
-      ]
+      selfie: {
+        tag: 'Commercial Capstone Showcase',
+        guide: '1. Attach your photo in Gemini. 2. Star in a world-class luxury perfume or runway commercial campaign worthy of high-converting showcase pages!',
+        presets: [
+          {
+            label: '🌟 Global Luxury Perfume Campaign',
+            text: 'Maintain 100% facial likeness and identity of the woman in the reference photo. She is the star of a global luxury perfume campaign. Floating under silk chiffon fabric with gentle wind movement, golden dust particles catching light in slow-motion capture, ultra-photorealistic skin pores, captivating confident gaze, shot by Annie Leibovitz, award-winning beauty campaign --ar 16:9'
+          },
+          {
+            label: '👑 Royal Velvet & Golden Filigree',
+            text: 'Using the exact facial features and likeness of the woman from the photo, generate a regal queen portrait: dressed in a deep royal crimson velvet cape lined with ermine fur, intricate filigree gold crown resting upon styled hair, ornate baroque palace hall backdrop, cinematic dramatic rim lighting, photorealistic 8k --ar 16:9'
+          },
+          {
+            label: '👠 Milan Fashion Week Finale',
+            text: 'Preserve the exact recognizable facial likeness of the woman in the uploaded photo. She is walking the finale of Milan Fashion Week: surrounded by blurred runway front-row audiences and camera flashes, wearing an architectural sculptural gown with metallic accents, confident commanding stride, telephoto 200mm fashion runway capture --ar 16:9'
+          }
+        ]
+      },
+      scratch: {
+        tag: 'Capstone Showcase',
+        guide: 'Formula: Hero Commercial Concept + Studio Lighting + Color Grading + Landing Page Ready',
+        presets: [
+          { label: 'Autonomous AI Neural Audio', text: 'Commercial hero visual of an autonomous AI neural headset made of matte titanium and frosted sea glass, floating above a minimalist black basalt pedestal, soft commercial studio diffusion, high-end editorial lighting, Hasselblad H6D clarity, landing page hero banner --ar 16:9' },
+          { label: 'Next-Gen Smart Footwear', text: 'Commercial editorial photograph of a futuristic aerodynamic sneaker made with bioluminescent mesh, dynamic floating angle, commercial advertising studio lighting, clean luxury gradient background --ar 16:9' },
+          { label: 'Eco-Living Smart Pod', text: 'Architectural hero exterior of a sustainable solar glass residential pod nestled in Scandinavian pine woods, dusk lighting, warm interior glow, architectural digest quality --ar 16:9' }
+        ]
+      }
     }
   };
 
-  let activeCelebrationDay = null;
   function updateSocialShare(dayNum) {
     if (!dayNum || !$('social-celebration')) return;
     activeCelebrationDay = dayNum;
@@ -126,7 +236,64 @@
     if (waBtn) waBtn.href = `https://api.whatsapp.com/send?text=${encodeURIComponent(quote + ' ' + shareUrl)}`;
 
     if ($('celebration-title')) $('celebration-title').textContent = `Day ${dayNum} Conquered! +250 XP Awarded`;
+
+    // Social Share Link Status
+    const existingShare = snapshot?.social_shares?.find(s => s.day === dayNum);
+    const form = $('share-link-form');
+    const statusEl = $('share-link-status');
+    if (existingShare) {
+      if (form) form.hidden = true;
+      if (statusEl) {
+        statusEl.hidden = false;
+        if (existingShare.status === 'approved') {
+          statusEl.textContent = '✦ Verified! +200 XP bonus awarded for this share.';
+          statusEl.style.color = 'var(--green)';
+        } else if (existingShare.status === 'rejected') {
+          statusEl.textContent = 'Post review was rejected. Please make sure your post is public and resubmit.';
+          statusEl.style.color = '#ff6b6b';
+          if (form) form.hidden = false;
+        } else {
+          statusEl.textContent = '⏳ Post link submitted! Admin is reviewing it to confirm +200 XP.';
+          statusEl.style.color = 'var(--yellow)';
+        }
+      }
+    } else {
+      if (form) form.hidden = false;
+      if (statusEl) statusEl.hidden = true;
+    }
+
     $('social-celebration').hidden = false;
+  }
+
+  function renderStudioForModule(module) {
+    const studio = $('gemini-studio');
+    if (!studio) return;
+    if (module.id.startsWith('day_') && module.state === 'available' && recipes[module.id]) {
+      const dayData = recipes[module.id];
+      const recipe = dayData[studioMode] || dayData.selfie || dayData.scratch;
+      if ($('studio-recipe-tag')) $('studio-recipe-tag').textContent = recipe.tag;
+      if ($('studio-guide')) $('studio-guide').textContent = recipe.guide;
+      const chipsContainer = $('studio-chips');
+      if (chipsContainer) {
+        chipsContainer.replaceChildren();
+        recipe.presets.forEach(preset => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'chip-btn';
+          btn.textContent = preset.label;
+          btn.addEventListener('click', () => {
+            if ($('gemini-prompt')) $('gemini-prompt').value = preset.text;
+          });
+          chipsContainer.append(btn);
+        });
+      }
+      if ($('gemini-prompt') && !$('gemini-prompt').value) {
+        $('gemini-prompt').value = recipe.presets[0].text;
+      }
+      studio.hidden = false;
+    } else {
+      studio.hidden = true;
+    }
   }
 
   function renderModule() {
@@ -142,35 +309,7 @@
     $('module-help').textContent = module.state === 'locked' ? module.prerequisite : module.state === 'completed' ? 'Well done. Your progress has been saved.' : module.state === 'unlocked' ? 'Your Tier 1 access is active.' : 'Take your time. Your progress will be saved when the server confirms it.';
     $('submit-button').disabled = busy || stopped; $('checkout-button').disabled = busy || stopped;
 
-    // Gemini Studio rendering
-    const studio = $('gemini-studio');
-    if (studio) {
-      if (module.id.startsWith('day_') && module.state === 'available' && recipes[module.id]) {
-        const recipe = recipes[module.id];
-        if ($('studio-recipe-tag')) $('studio-recipe-tag').textContent = recipe.tag;
-        if ($('studio-guide')) $('studio-guide').textContent = recipe.guide;
-        const chipsContainer = $('studio-chips');
-        if (chipsContainer) {
-          chipsContainer.replaceChildren();
-          recipe.presets.forEach(preset => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'chip-btn';
-            btn.textContent = preset.label;
-            btn.addEventListener('click', () => {
-              if ($('gemini-prompt')) $('gemini-prompt').value = preset.text;
-            });
-            chipsContainer.append(btn);
-          });
-        }
-        if ($('gemini-prompt') && !$('gemini-prompt').value) {
-          $('gemini-prompt').value = recipe.presets[0].text;
-        }
-        studio.hidden = false;
-      } else {
-        studio.hidden = true;
-      }
-    }
+    renderStudioForModule(module);
 
     // Social share rendering for completed module
     if ($('social-celebration')) {
@@ -181,10 +320,34 @@
       }
     }
   }
+
   document.querySelectorAll('[data-module]').forEach(button => button.addEventListener('click', () => {
     if (busy || selected === button.dataset.module) return;
     selected = button.dataset.module; $('submission').value = ''; if (snapshot) render();
   }));
+
+  $('mode-selfie')?.addEventListener('click', () => {
+    studioMode = 'selfie';
+    $('mode-selfie')?.classList.add('active');
+    $('mode-scratch')?.classList.remove('active');
+    const module = snapshot?.modules.find(item => item.id === selected);
+    if (module) {
+      if ($('gemini-prompt')) $('gemini-prompt').value = '';
+      renderStudioForModule(module);
+    }
+  });
+
+  $('mode-scratch')?.addEventListener('click', () => {
+    studioMode = 'scratch';
+    $('mode-scratch')?.classList.add('active');
+    $('mode-selfie')?.classList.remove('active');
+    const module = snapshot?.modules.find(item => item.id === selected);
+    if (module) {
+      if ($('gemini-prompt')) $('gemini-prompt').value = '';
+      renderStudioForModule(module);
+    }
+  });
+
   $('submission-form').addEventListener('submit', async event => {
     event.preventDefault();
     if (busy || !snapshot) return;
@@ -231,6 +394,40 @@
     const note = $('share-copied-note');
     if (note) { note.hidden = false; setTimeout(() => { note.hidden = true; }, 4000); }
   });
+
+  $('share-link-form')?.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (busy || !snapshot) return;
+    const url = $('share-post-url')?.value.trim();
+    const day = activeCelebrationDay;
+    const statusEl = $('share-link-status');
+    const submitBtn = $('btn-submit-share-link');
+    if (!url || !day) return;
+
+    if (submitBtn) submitBtn.disabled = true;
+    try {
+      const res = await request('/api/v1/curriculum/share-link', {
+        method: 'POST',
+        body: JSON.stringify({ day, share_url: url, platform: 'social' })
+      });
+      if (statusEl) {
+        statusEl.textContent = '⏳ ' + (res.message || 'Link submitted for admin confirmation (+200 XP upon approval)!');
+        statusEl.style.color = 'var(--yellow)';
+        statusEl.hidden = false;
+      }
+      if ($('share-link-form')) $('share-link-form').hidden = true;
+      await refresh();
+    } catch (err) {
+      if (statusEl) {
+        statusEl.textContent = 'Error: ' + err.message;
+        statusEl.style.color = '#ff6b6b';
+        statusEl.hidden = false;
+      }
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+
   $('checkout-button').addEventListener('click', async () => {
     if (busy) return;
     busy = true; renderModule();
@@ -242,6 +439,7 @@
     } catch (error) { notice(error.message); }
     finally { busy = false; renderModule(); }
   });
+
   $('refresh-button').addEventListener('click', refresh);
   function connect() {
     if (stopped || stream) return;

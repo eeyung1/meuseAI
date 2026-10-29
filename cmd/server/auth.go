@@ -80,8 +80,26 @@ func (a *App) identity(r *http.Request) (string, error) {
 	return a.validate(cookie.Value, "session")
 }
 func (a *App) admin(r *http.Request) bool {
-	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-	return a.config.AdminToken != "" && r.Header.Get("Authorization") == "Bearer "+token && subtle.ConstantTimeCompare([]byte(token), []byte(a.config.AdminToken)) == 1
+	token := ""
+	authHeader := r.Header.Get("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		token = strings.TrimPrefix(authHeader, "Bearer ")
+	}
+	if token == "" {
+		token = r.URL.Query().Get("admin_token")
+	}
+	if a.config.AdminToken == "" || token == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(token), []byte(a.config.AdminToken)) == 1
+}
+
+func (a *App) adminHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	http.ServeFileFS(w, r, assets.Assets, "admin.html")
 }
 
 type verificationWriter struct {

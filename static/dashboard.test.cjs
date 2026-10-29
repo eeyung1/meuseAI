@@ -4,7 +4,25 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 class Element {
-  constructor() { this.textContent = ''; this.children = []; this.listeners = {}; this.attributes = {}; this.dataset = {}; this.style = {}; this.hidden = false; this.disabled = false; this.value = ''; this.parentElement = { classList: { toggle() {} } }; this.classList = { toggle() {} }; }
+  constructor() {
+    this.textContent = '';
+    this.children = [];
+    this.listeners = {};
+    this.attributes = {};
+    this.dataset = {};
+    this.style = {};
+    this.hidden = false;
+    this.disabled = false;
+    this.value = '';
+    this.className = '';
+    this.parentElement = { classList: { toggle() {} } };
+    this.classList = {
+      toggle() {},
+      add: cls => { if (!this.className.includes(cls)) this.className += ' ' + cls; },
+      remove: cls => { this.className = this.className.replace(cls, '').trim(); },
+      contains: cls => this.className.includes(cls)
+    };
+  }
   set innerHTML(_) { throw new Error('Untrusted HTML rendering'); }
   addEventListener(type, fn) { this.listeners[type] = fn; }
   setAttribute(name, value) { this.attributes[name] = value; }
@@ -80,3 +98,65 @@ test('checkout accepts only Paystack HTTPS destination', async () => {
     else { assert.equal(h.context.destination, undefined); assert.match(h.element('notice').textContent, /Checkout is unavailable/); }
   }
 });
+
+test('studio switches between selfie and scratch modes and populates preset prompts', async () => {
+  const h = harness(() => ok(profile())); await settle();
+  assert.equal(h.element('gemini-studio').hidden, false);
+  assert.match(h.element('gemini-prompt').value, /uploaded photo|likeness/i);
+
+  // Switch to creative scratch mode
+  h.element('mode-scratch').listeners.click();
+  assert.match(h.element('gemini-prompt').value, /Crystal|golden-hour|volumetric/i);
+
+  // Switch back to selfie mode
+  h.element('mode-selfie').listeners.click();
+  assert.match(h.element('gemini-prompt').value, /uploaded photo|likeness/i);
+});
+
+test('submitting social share link posts to /api/v1/curriculum/share-link', async () => {
+  let submittedPayload = null;
+  const h = harness((path, options) => {
+    if (path === '/api/v1/curriculum/share-link') {
+      submittedPayload = JSON.parse(options.body);
+      return ok({ status: 'pending', message: 'Submitted for verification' });
+    }
+    const data = profile();
+    return ok(data);
+  });
+  await settle();
+
+  // Complete day 2 to trigger celebration
+  h.element('submission').value = 'Test prompt';
+  await h.element('submission-form').listeners.submit({ preventDefault() {} });
+  await settle();
+
+  assert.equal(h.element('social-celebration').hidden, false);
+
+  // Submit social share link
+  h.element('share-post-url').value = 'https://www.facebook.com/student/posts/12345';
+  await h.element('share-link-form').listeners.submit({ preventDefault() {} });
+  await settle();
+
+  assert.deepEqual(submittedPayload, {
+    day: 2,
+    share_url: 'https://www.facebook.com/student/posts/12345',
+    platform: 'social'
+  });
+  assert.match(h.element('share-link-status').textContent, /Submitted for verification/);
+});
+
+test('applies 10% discount to checkout button when XP exceeds 2000', async () => {
+  const h = harness(() => {
+    const data = profile();
+    data.xp = 2250;
+    data.discount_percent = 10;
+    data.tier_1_price_naira = 4500;
+    data.modules[4].state = 'available';
+    return ok(data);
+  });
+  await settle();
+
+  assert.match(h.element('discount-banner-text').textContent, /10% Course Discount Unlocked/);
+  assert.match(h.element('checkout-button').textContent, /4,500/);
+});
+

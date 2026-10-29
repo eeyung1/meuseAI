@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>meuseAI · Admin Verification Portal</title>
+  <link rel="stylesheet" href="/assets/landing.css">
+  <script defer src="/assets/admin.js"></script>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <span class="brand-dot"></span>meuse<span>AI</span>
+      <span style="font-size:12px;margin-left:12px;background:var(--elevated);border:1px solid var(--border);padding:3px 8px;border-radius:6px;color:var(--yellow);font-weight:600;">ADMIN</span>
+    </a>
+    <div class="header-actions">
+      <a href="/dashboard" class="btn-secondary-sm">Student Dashboard</a>
+      <button id="admin-logout-btn" class="btn-secondary-sm" hidden>Exit Admin</button>
+    </div>
+  </header>
+
+  <main style="max-width:1200px;margin:32px auto;padding:0 24px;">
+    <!-- Auth Gate -->
+    <div id="admin-auth-card" class="action-card" style="max-width:500px;margin:60px auto;">
+      <div style="font-size:32px;margin-bottom:12px;">🔐</div>
+      <h2 style="font-size:22px;margin-bottom:8px;">Admin Authentication</h2>
+      <p class="muted" style="font-size:14px;margin-bottom:20px;">Enter your <code>MEUSEAI_ADMIN_TOKEN</code> to access the verification queue and review student social posts.</p>
+      <form id="admin-auth-form" style="display:grid;gap:12px;">
+        <input type="password" id="admin-token-input" placeholder="Paste MEUSEAI_ADMIN_TOKEN" required style="width:100%;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:monospace;">
+        <button type="submit" class="btn-primary" style="width:100%;">Access Admin Portal →</button>
+      </form>
+      <p id="admin-auth-error" style="color:#ff6b6b;font-size:13px;margin-top:10px;" hidden></p>
+    </div>
+
+    <!-- Portal Content -->
+    <div id="admin-portal-content" hidden>
+      <!-- Stat Strip -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:28px;">
+        <div class="action-card" style="padding:20px;">
+          <span class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Pending Verification</span>
+          <h2 id="stat-pending" style="font-size:32px;color:var(--yellow);margin-top:4px;">0</h2>
+        </div>
+        <div class="action-card" style="padding:20px;">
+          <span class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Approved Shares</span>
+          <h2 id="stat-approved" style="font-size:32px;color:var(--green);margin-top:4px;">0</h2>
+        </div>
+        <div class="action-card" style="padding:20px;">
+          <span class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Total Submissions</span>
+          <h2 id="stat-total" style="font-size:32px;color:var(--text);margin-top:4px;">0</h2>
+        </div>
+      </div>
+
+      <!-- Controls & Filter -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:20px;">
+        <div>
+          <h1 style="font-size:24px;margin:0 0 4px;">Social Share Verification Queue</h1>
+          <p class="muted" style="font-size:14px;margin:0;">Review student social media posts and confirm +200 XP rewards.</p>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <select id="filter-status" style="background:var(--elevated);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;">
+            <option value="">All Statuses</option>
+            <option value="pending" selected>Pending Only</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <button id="btn-refresh-shares" class="btn-secondary-sm">↻ Refresh</button>
+        </div>
+      </div>
+
+      <!-- Share Items List -->
+      <div id="shares-table-container" class="action-card" style="padding:0;overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:14px;text-align:left;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);background:var(--elevated);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.8px;">
+              <th style="padding:14px 18px;">Student</th>
+              <th style="padding:14px 18px;">Lesson</th>
+              <th style="padding:14px 18px;">Platform</th>
+              <th style="padding:14px 18px;">Post Link</th>
+              <th style="padding:14px 18px;">Submitted</th>
+              <th style="padding:14px 18px;">Status</th>
+              <th style="padding:14px 18px;text-align:right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="shares-tbody">
+            <tr>
+              <td colspan="7" style="padding:32px;text-align:center;color:var(--muted);">Loading verification queue...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tier 2 Admin Quick Gate -->
+      <div class="action-card" style="margin-top:36px;padding:24px;">
+        <h3 style="font-size:18px;margin-bottom:8px;">Tier 2 Coding Agent Readiness Gate</h3>
+        <p class="muted" style="font-size:13px;margin-bottom:16px;">Toggle manual readiness for qualified students to unlock ₦25,000 Tier 2 AI Coding Agent track.</p>
+        <form id="tier2-toggle-form" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="tier2-student-id" placeholder="Student ID (UUID)" required style="flex:1;min-width:240px;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:monospace;font-size:13px;">
+          <select id="tier2-ready-select" style="padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;">
+            <option value="true">Enable Readiness (Ready)</option>
+            <option value="false">Disable Readiness</option>
+          </select>
+          <button type="submit" class="btn-primary-sm">Apply Gate Setting</button>
+        </form>
+        <p id="tier2-result-note" style="font-size:13px;margin-top:10px;" hidden></p>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
