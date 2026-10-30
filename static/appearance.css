@@ -1,0 +1,28 @@
+:root{--danger:#ff6b6b}
+/* Shared appearance controls and a light palette inspired by the supplied clip. */
+.appearance-control{display:flex;align-items:center;gap:8px;margin:0;font:600 12px/1.4 system-ui,sans-serif;color:var(--text)}
+.appearance-control select{font:inherit;font-size:16px;min-height:44px;max-width:190px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);cursor:pointer}
+.appearance-control select:focus-visible{outline:3px solid var(--yellow);outline-offset:3px}
+:root[data-appearance=light]{color-scheme:light;--danger:#a82035;--bg:#fff8f3;--surface:#ffffff;--elevated:#fff0e5;--border:#d8c3b5;--border-glow:#b34410;--yellow:#b34410;--yellow-hover:#92370d;--text:#28211d;--muted:#64544b;--green:#216944;--accent-blue:#1759a6}
+[data-appearance=light] header{background:rgba(255,255,255,.96)}
+[data-appearance=light] .brand-dot{box-shadow:0 0 12px #b3441022}
+[data-appearance=light] .action-card,[data-appearance=light] .upsell-card,[data-appearance=light] .tab-btn.active{box-shadow:0 6px 22px #41230b0c}
+[data-appearance=light] :is(.btn-primary,.btn-primary-sm,.primary,.primary-accent,.mode-pill.active,.chip-btn[aria-pressed=true],.node.available,.nav-active,.avatar){background:var(--yellow);color:#fff}
+[data-appearance=light] :is(.btn-primary,.btn-primary-sm,.primary,.primary-accent):hover{background:var(--yellow-hover);color:#fff}
+[data-appearance=light] :is(.badge-pill,.micro-pill,.pill-track.highlight,.discount-banner){background:#fff0e5;border-color:#d8a98d;color:var(--yellow)}
+[data-appearance=light] .gemini-studio-box{border-color:#d8a98d}
+[data-appearance=light] .celebration-box{background:#f1faf3;border-color:#a6c9b0;box-shadow:none}
+[data-appearance=light] .node.completed,[data-appearance=light] .node.unlocked{background:#e9f5eb;color:var(--green);border-color:var(--green)}
+[data-appearance=light] .pill.available{color:var(--yellow);border-color:var(--yellow)}
+[data-appearance=light] .pill.completed,[data-appearance=light] .pill.unlocked{color:var(--green);border-color:var(--green)}
+[data-appearance=light] .step-badge{box-shadow:none}
+[data-appearance=light] .step-card,[data-appearance=light] .tier-box.featured{border-color:#d8a98d}
+[data-appearance=light] #notice{background:#fff0e5;border-color:#d8a98d;color:#92370d}
+[data-appearance=light] .feedback.error{color:#a82035}
+[data-appearance=light] .share-btn{color:#fff}
+header{flex-wrap:wrap}
+@media(max-width:680px){.appearance-control{gap:6px}.appearance-control>span{font-size:11px}.appearance-control select{max-width:175px}.appearance-control{margin-left:auto}header{row-gap:10px}.header-actions{flex-wrap:wrap}}
+
+[data-appearance=light] .share-btn.whatsapp{background:#13783c}[data-appearance=light] .share-btn.facebook{background:#1469d1}
+
+[data-appearance=light] .admin-layout-10,[data-appearance=light] .status-icon.error{color:var(--danger)}[data-appearance=light] .verify-box{box-shadow:0 6px 22px #41230b0c}
