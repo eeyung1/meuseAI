@@ -21,7 +21,17 @@
 [data-appearance=light] .feedback.error{color:#a82035}
 [data-appearance=light] .share-btn{color:#fff}
 header{flex-wrap:wrap}
-@media(max-width:680px){.appearance-control{gap:6px}.appearance-control>span{font-size:11px}.appearance-control select{max-width:175px}.appearance-control{margin-left:auto}header{row-gap:10px}.header-actions{flex-wrap:wrap}}
+/* On phones, keep the brand and appearance in the first row, actions below. */
+@media(max-width:680px){
+ header{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,176px);align-items:center;gap:10px 12px;padding:calc(10px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px))}
+ header>.brand{grid-column:1;grid-row:1;min-width:0;flex-wrap:wrap;font-size:22px}
+ header>.appearance-control{grid-column:2;grid-row:1;justify-self:end;width:100%;min-width:0;display:flex;flex-direction:column;align-items:stretch;gap:3px;margin:0}
+ .appearance-control>span{font-size:11px;line-height:1.2}
+ .appearance-control select{width:100%;max-width:100%;min-width:0;min-height:44px;font-size:16px}
+ header>:is(.header-actions,.connection,.header-nav,.header-note){grid-column:1/-1;grid-row:auto;min-width:0}
+ header>.header-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+ header>.connection{justify-content:flex-end;flex-wrap:wrap}
+}
 
 [data-appearance=light] .share-btn.whatsapp{background:#13783c}[data-appearance=light] .share-btn.facebook{background:#1469d1}
 
