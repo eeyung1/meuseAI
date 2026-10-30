@@ -104,3 +104,21 @@ Migration 5 adds student entitlement flags and stored payment selections, backfi
 Tool selection reviewed 2026-10-29: https://www.capcut.com/tools/ai-video ; https://www.capcut.com/help/how-to-use-credits ; https://www.capcut.com/help/ai-function-not-working-after-login . Guidance does not promise free or unlimited AI generation. Tool access and model choices can be updated independently of purchased learning entitlements.
 
 Mobile navigation: Open Gemini is a native HTTPS link to Google's documented web entry point `https://gemini.google.com/`, opening a separate tab. A visible same-tab link and copyable website address provide alternatives for phone browser/app handoffs that return to meuseAI. Both navigation links save local drafts synchronously and leave browser navigation intact. The website cannot guarantee that the installed Gemini app opens; users can open it directly and paste their prompt. Copying the website address replaces clipboard contents, so the UI reminds users to recopy their prompt. Mobile profile/banner grids span the available width, modal controls stack, touch targets are at least 44px and text fields use 16px text.
+
+## Free validation pilot
+
+Production defaults to `MEUSEAI_PILOT_MODE=true`. This keeps the current Render Free service and `meuseai.onrender.com` hostname. The Blueprint explicitly enables the pilot and disables mail dry-run (`MEUSEAI_DRY_RUN=false`); Brevo/Resend credentials and a verified sender remain necessary for actual delivery.
+
+In pilot mode, new checkout requests for any tier return 503 before creating a payment or calling Paystack. Signed webhooks for previously created payments still work, and existing purchased entitlements are retained. After completing Day 4, verified subscribed learners can POST `tracks` to `/api/v1/tier-1/interest`. Selection validation is shared with checkout. Repeated identical selections are idempotent; changing selections creates a new `tier1_interest` activity event. No payment, entitlement or XP is created. The admin portal reads the latest selection per learner through authenticated `GET /api/v1/admin/tier-1-interest` (up to 500 entries). These are non-binding expressions of interest, not purchase reservations or revenue.
+
+Before turning pilot mode off: check remaining free workspace hours in Render Billing, move the backend to paid compute, verify email delivery, verify live Paystack configuration and a controlled transaction, then update launch copy and set `MEUSEAI_PILOT_MODE=false`. Keep `MEUSEAI_DRY_RUN=false`. The Go process runs reminder/provisioning loops, so free-service sleeping or suspension can delay scheduled emails; the free pilot does not provide guaranteed delivery timing. No keep-alive traffic is added to defeat free-tier sleeping.
+
+Pilot readiness:
+- [x] Free hosting and current hostname retained.
+- [x] Blueprint sends real email rather than defaulting to dry-run.
+- [x] Server blocks new charges during pilot.
+- [x] Learner interest is durable and visible to admin.
+- [ ] Successful signup and inbox delivery checked on a pilot account.
+- [ ] Remaining workspace free hours checked in Render Billing before invitations.
+- [ ] Gemini launch confirmed on a real phone.
+- [ ] Walkthrough recording supplied and embedded.

@@ -386,3 +386,82 @@ func TestTrackSelectionValidationAndUpgrade(t *testing.T) {
 		t.Fatal("upgrade lost access")
 	}
 }
+
+func TestPilotInterestDoesNotChargeOrUnlock(t *testing.T) {
+	for _, postgres := range []bool{false, true} {
+		t.Run(fmt.Sprint(postgres), func(t *testing.T) {
+			d, p, mux := paymentFixture(t, postgres)
+			p.config.PilotMode = true
+			if w := paymentRequest(mux, "/api/v1/payments/checkout", `{"tier":"tier_1","tracks":["video"]}`, nil); w.Code != 503 {
+				t.Fatal("pilot checkout accepted", w.Code)
+			}
+			for i := 0; i < 2; i++ {
+				if w := paymentRequest(mux, "/api/v1/tier-1/interest", `{"tracks":["video"]}`, nil); w.Code != 200 {
+					t.Fatal(w.Code, w.Body.String())
+				}
+			}
+			paymentAssertCount(t, d, "tier1_interest", 1)
+			if w := paymentRequest(mux, "/api/v1/tier-1/interest", `{"tracks":["video","landing_pages"]}`, nil); w.Code != 200 {
+				t.Fatal(w.Body.String())
+			}
+			paymentAssertCount(t, d, "tier1_interest", 2)
+			var payments int
+			var landing, video bool
+			_ = d.QueryRow("SELECT COUNT(*) FROM payments").Scan(&payments)
+			_ = d.QueryRow("SELECT tier1_landing,tier1_video FROM students WHERE id='s1'").Scan(&landing, &video)
+			if payments != 0 || landing || video {
+				t.Fatal("interest charged or granted access")
+			}
+			request := httptest.NewRequest("GET", "/api/v1/admin/tier-1-interest", nil)
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, request)
+			if w.Code != 401 {
+				t.Fatal("interest list exposed")
+			}
+			request.Header.Set("Authorization", "Bearer admin-test")
+			w = httptest.NewRecorder()
+			mux.ServeHTTP(w, request)
+			var list struct {
+				Entries []struct {
+					Tracks string `json:"tracks"`
+				} `json:"entries"`
+			}
+			_ = json.Unmarshal(w.Body.Bytes(), &list)
+			if w.Code != 200 || len(list.Entries) != 1 || list.Entries[0].Tracks != "landing_pages,video" {
+				t.Fatal("latest interest missing", w.Body.String())
+			}
+		})
+	}
+}
+func TestPilotInterestEligibility(t *testing.T) {
+	d, p, mux := paymentFixture(t, false)
+	p.config.PilotMode = true
+	for _, body := range []string{`{}`, `{"tracks":[]}`, `{"tracks":["fake"]}`, `{"tracks":["video","video"]}`} {
+		if w := paymentRequest(mux, "/api/v1/tier-1/interest", body, nil); w.Code != 400 {
+			t.Fatal("invalid interest accepted", w.Code)
+		}
+	}
+	if _, err := d.Exec("UPDATE students SET email_verified=FALSE"); err != nil {
+		t.Fatal(err)
+	}
+	if w := paymentRequest(mux, "/api/v1/tier-1/interest", `{"tracks":["video"]}`, nil); w.Code != 403 {
+		t.Fatal("unverified interest accepted")
+	}
+	p.config.PilotMode = false
+	if w := paymentRequest(mux, "/api/v1/tier-1/interest", `{"tracks":["video"]}`, nil); w.Code != 409 {
+		t.Fatal("interest endpoint active outside pilot")
+	}
+}
+
+func TestPilotHonorsExistingPendingPayment(t *testing.T) {
+	d, p, mux := paymentFixture(t, false)
+	reference := paymentCheckout(t, mux, "tier_1")
+	p.config.PilotMode = true
+	if w := paymentWebhook(mux, paymentEvent(reference, 500000)); w.Code != 200 {
+		t.Fatal("existing payment blocked", w.Code, w.Body.String())
+	}
+	var owned bool
+	if err := d.QueryRow("SELECT tier1_landing FROM students WHERE id='s1'").Scan(&owned); err != nil || !owned {
+		t.Fatal("existing payment lost access", err)
+	}
+}

@@ -19,6 +19,7 @@ import (
 // user-supplied student header. Server bootstrap supplies the auth adapter.
 type PaymentIdentity func(*http.Request) (string, error)
 type PaymentConfig struct {
+	PilotMode       bool
 	Database        *db.DB
 	Paystack        *services.Paystack
 	StudentIdentity PaymentIdentity
@@ -34,6 +35,8 @@ func NewPayment(config PaymentConfig) (*Payment, error) {
 }
 func (p *Payment) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/payments/checkout", p.Checkout)
+	mux.HandleFunc("POST /api/v1/tier-1/interest", p.Interest)
+	mux.HandleFunc("GET /api/v1/admin/tier-1-interest", p.ListInterest)
 	mux.HandleFunc("POST /api/v1/webhooks/paystack", p.Webhook)
 	mux.HandleFunc("POST /api/v1/admin/toggle-tier-2", p.ToggleTier2)
 }
@@ -75,6 +78,10 @@ func (p *Payment) Checkout(w http.ResponseWriter, r *http.Request) {
 	id, err := p.config.StudentIdentity(r)
 	if err != nil || id == "" {
 		paymentError(w, 401, "authentication required")
+		return
+	}
+	if p.config.PilotMode {
+		paymentJSON(w, 503, map[string]string{"error": "Paid checkout is paused during the free pilot. Register track interest instead.", "code": "pilot_mode"})
 		return
 	}
 	var input struct {

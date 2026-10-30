@@ -1,5 +1,7 @@
 # meuseAI: Complete Student Journey & Automation Blueprint (v2)
 
+> **Validation pilot (2026-10-30):** Paid enrollment is paused by default (`MEUSEAI_PILOT_MODE=true`). The four-day course stays free on the existing Render hostname. Learners can register non-binding Tier 1 track interest after Day 4; planned prices below are not a current checkout offer. Admin can review interest. Upgrade backend reliability and verify live payments before enabling checkout. See `cmd/server/README.md` for the pilot checklist.
+
 > **Current Tier 1 policy (2026-10-29):** Learners choose Lovable landing pages, AI video generation with CapCut, or both. Each track costs ₦5,000; both cost ₦10,000. The earned 10% XP discount makes these ₦4,500/₦9,000. Only purchased tracks unlock, and the other track can be bought later. External subscriptions/AI credits are separate. This supersedes the original single-track Tier 1 descriptions below; see `cmd/server/README.md` for the implemented API, entitlement and migration details.
 
 
