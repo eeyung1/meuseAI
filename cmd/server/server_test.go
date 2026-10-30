@@ -240,7 +240,7 @@ func TestLandingAndMagicLoginJourney(t *testing.T) {
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
 	a.Handler.ServeHTTP(w, req)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), "Claim Your Free Seat") {
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `id="signup-form"`) {
 		t.Fatalf("landing page failed: code=%d body=%s", w.Code, w.Body.String())
 	}
 

@@ -132,3 +132,16 @@ The Prompt Lab launch button opens the modal at its beginning without automatica
 ## Appearance preferences
 
 All public pages, the dashboard, verification, sharing and admin expose an Appearance selector. Light orange is the default for new visitors; an explicitly saved appearance remains respected. On phones, the appearance control sits alongside the brand in the first header row, with account actions below. Light orange adapts the white/neutral/orange reference into a meuseAI palette with darker orange for readable text and buttons. Use device setting follows the operating system preference and updates when it changes. The early shared script validates stored values before setting the root appearance, so returning users do not first see the wrong palette. Preferences are stored locally under `meuseai-appearance`, synchronize across tabs, and do not change account data. Storage restrictions fall back safely to the current page preference. This changes colour treatment only, with no GTBank branding, layouts or assets copied into the product.
+
+### Customer feedback polish — October 2026
+
+- [x] Light-orange default retained; dark mode uses neutral charcoal surfaces with restrained gold accents.
+- [x] Neutral cards, badges and share buttons reduce competing colours; errors and completion retain meaningful status colours.
+- [x] Beginner-focused landing copy describes the four daily skills and the 24-hour unlock rule. Signup precedes the detailed walkthrough.
+- [x] Prompt Lab shows Choose → Copy & create → Return & save, with an accessible copy status. Native Gemini navigation and one editable lesson prompt are preserved.
+- [x] Dashboard footer links to the course overview and existing support contacts; no unverified social profiles are published.
+- [ ] Add official Instagram, Facebook and X profile URLs when supplied.
+- [ ] Add the owner's course walkthrough video when supplied (the bank clip is only a colour reference).
+- [ ] Confirm the revised flow on a learner's phone after deployment.
+
+Embedded generation, cross-model execution, new academy subjects and hosting migration are outside this feedback batch. Free pilot and payment restrictions remain in force.
