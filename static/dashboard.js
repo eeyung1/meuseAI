@@ -267,7 +267,7 @@
           statusEl.style.color = 'var(--green)';
         } else if (existingShare.status === 'rejected') {
           statusEl.textContent = 'Post review was rejected. Please make sure your post is public and resubmit.';
-          statusEl.style.color = '#ff6b6b';
+          statusEl.style.color = 'var(--danger)';
           if (form) form.hidden = false;
         } else {
           statusEl.textContent = '⏳ Post link submitted! Admin is reviewing it to confirm +250 XP.';
@@ -585,7 +585,7 @@
     } catch (err) {
       if (statusEl) {
         statusEl.textContent = 'Error: ' + err.message;
-        statusEl.style.color = '#ff6b6b';
+        statusEl.style.color = 'var(--danger)';
         statusEl.hidden = false;
       }
     } finally {

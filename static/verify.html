@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en">
-<head>
+<head><script src="/assets/appearance.js"></script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>meuseAI · Verification</title>
@@ -42,7 +42,7 @@
     .status-icon.error {
       background: rgba(244, 63, 94, 0.15);
       border: 1px solid #f43f5e;
-      color: #fca5a5;
+      color: var(--danger);
     }
     .verify-box h1 {
       font-size: 24px;
@@ -67,13 +67,13 @@
       text-align: left;
     }
   </style>
-</head>
+<link rel="stylesheet" href="/assets/appearance.css"></head>
 <body>
   <header>
     <a class="brand" href="/">
       <span class="brand-dot"></span>meuse<span>AI</span>
     </a>
-  </header>
+  <label class="appearance-control"><span>Appearance</span><select data-appearance-control aria-label="Appearance"><option value="dark">Dark gold</option><option value="light">Light orange</option><option value="system">Use device setting</option></select></label></header>
 
   <main class="verify-container">
     <div class="verify-box">
@@ -92,7 +92,7 @@
       <!-- ERROR STATE -->
       <div id="state-error" hidden>
         <div class="status-icon error">⚠</div>
-        <p class="eyebrow" style="color:#fca5a5;">LINK EXPIRED OR INVALID</p>
+        <p class="eyebrow" style="color:var(--danger);">LINK EXPIRED OR INVALID</p>
         <h1>Verification Link Expired</h1>
         <p>This verification link is either invalid, already used, or has passed its 24-hour expiration window.</p>
 

@@ -63,7 +63,7 @@
       } catch (err) {
         if (note) {
           note.textContent = 'Error: ' + err.message;
-          note.style.color = '#ff6b6b';
+          note.style.color = 'var(--danger)';
           note.hidden = false;
         }
       }
@@ -237,7 +237,7 @@
         statusBadge.textContent = `Approved (+${Number(item.xp_awarded) || 0} XP)`;
       } else if (item.status === 'rejected') {
         statusBadge.style.background = 'rgba(255, 107, 107, 0.15)';
-        statusBadge.style.color = '#ff6b6b';
+        statusBadge.style.color = 'var(--danger)';
         statusBadge.textContent = 'Rejected';
       } else {
         statusBadge.style.background = 'rgba(255, 214, 10, 0.15)';
@@ -260,7 +260,7 @@
 
         const btnReject = document.createElement('button');
         btnReject.className = 'btn-secondary-sm';
-        btnReject.style.color = '#ff6b6b';
+        btnReject.style.color = 'var(--danger)';
         btnReject.textContent = '✗ Reject';
         btnReject.addEventListener('click', () => reviewShare(item.id, 'reject'));
 

@@ -152,7 +152,7 @@ func TestDashboardModuleGates(t *testing.T) {
 }
 func TestDashboardAuthAndAssets(t *testing.T) {
 	database, d, mux := dashboardFixture(t, false)
-	for path, content := range map[string]string{"/dashboard": "Your learning hub", "/assets/dashboard.js": "EventSource", "/assets/dashboard.css": "#ffd60a"} {
+	for path, content := range map[string]string{"/dashboard": "Your learning hub", "/assets/dashboard.js": "EventSource", "/assets/dashboard.css": "#ffd60a", "/assets/appearance.js": "meuseai-appearance", "/assets/appearance.css": "data-appearance=light"} {
 		w := dashboardGet(mux, path)
 		if w.Code != 200 || !strings.Contains(w.Body.String(), content) {
 			t.Fatalf("asset %s %d", path, w.Code)
