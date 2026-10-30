@@ -222,14 +222,12 @@
   function draftKey() { return 'meuseai-draft:' + (snapshot?.student_id || snapshot?.full_name || 'learner') + ':' + selected; }
   function saveDraft() {
     if (!selected || !snapshot) return;
-    try { localStorage.setItem(draftKey(), JSON.stringify({ prompt: $('gemini-prompt')?.value || '', submission: $('submission')?.value || '', reflection: $('reflection')?.value || '' })); } catch (_) { /* Storage can be disabled. */ }
+    try { let previous={};try{previous=JSON.parse(localStorage.getItem(draftKey())||'{}');}catch(_){} localStorage.setItem(draftKey(), JSON.stringify({...previous,prompt:$('gemini-prompt')?.value||''})); } catch (_) { /* Storage can be disabled. */ }
   }
   function restoreDraft() {
     try {
       const saved = JSON.parse(localStorage.getItem(draftKey()) || '{}');
-      if ($('gemini-prompt')) $('gemini-prompt').value = saved.prompt || '';
-      if ($('submission')) $('submission').value = saved.submission || '';
-      if ($('reflection')) $('reflection').value = saved.reflection || '';
+      if ($('gemini-prompt')) $('gemini-prompt').value = typeof saved.prompt==='string'?saved.prompt:(saved.submission||'');
     } catch (_) { /* A missing or invalid draft must not block the lesson. */ }
   }
 
@@ -295,26 +293,41 @@
       const chipsContainer = $('studio-chips');
       if (chipsContainer) {
         chipsContainer.replaceChildren();
-        recipe.presets.forEach(preset => {
+        const scrollTop=chipsContainer.scrollTop;
+        recipe.presets.forEach((preset,index) => {
           const btn = document.createElement('button');
           btn.type = 'button';
           btn.className = 'chip-btn';
-          btn.textContent = preset.label;
+          btn.textContent = `${index+1}. ${preset.label}`;
+          btn.dataset.prompt=preset.text;
+          btn.setAttribute('aria-pressed',String($('gemini-prompt').value===preset.text));
           btn.addEventListener('click', () => {
-            if ($('gemini-prompt')) $('gemini-prompt').value = preset.text; saveDraft();
+            if ($('gemini-prompt')) $('gemini-prompt').value = preset.text; updatePromptSelection();saveDraft();
           });
           chipsContainer.append(btn);
         });
+        chipsContainer.scrollTop=scrollTop;
       }
       if ($('gemini-prompt') && !$('gemini-prompt').value) {
         $('gemini-prompt').value = recipe.presets[0].text;
       }
+      updatePromptSelection();
       studio.hidden = false;
     } else {
       studio.hidden = true;
     }
   }
 
+  function updatePromptSelection(){
+    let selectedLabel='Custom prompt · ready to copy or edit';
+    for(const button of Array.from($('studio-chips')?.children||[])){
+      const active=button.dataset.prompt===$('gemini-prompt')?.value;
+      button.setAttribute('aria-pressed',String(active));if(active)selectedLabel='Selected: '+button.textContent;
+    }
+    if($('selected-prompt-name'))$('selected-prompt-name').textContent=selectedLabel;
+  }
+  $('lab-show-themes')?.addEventListener('click',()=>$('studio-chips')?.scrollIntoView?.({behavior:'smooth',block:'start'}));
+  $('lab-show-prompt')?.addEventListener('click',()=>$('prompt-workbench')?.scrollIntoView?.({behavior:'smooth',block:'start'}));
   function openPractice() {
     const module = snapshot?.modules.find(item => item.id === selected);
     if (!module || !['available', 'completed'].includes(module.state) || !module.id.startsWith('day_')) return;
@@ -323,7 +336,8 @@
     dialog.hidden = false;
     if (typeof dialog.showModal === 'function' && !dialog.open) dialog.showModal();
     $('open-prompt-lab')?.setAttribute('aria-expanded', 'true');
-    $('gemini-prompt')?.focus();
+    $('prompt-lab-dialog-title')?.focus({preventScroll:true});
+    dialog.scrollTop=0;
   }
   function closePractice() {
     const dialog = $('prompt-lab-dialog');
@@ -408,6 +422,7 @@
     $('module-prerequisite').textContent = module.prerequisite;
     $('module-xp').textContent = module.xp ? `+${module.xp} XP` : 'Tier 1';
     $('submission-form').hidden = !module.id.startsWith('day_') || module.state !== 'available';
+    $('btn-use-prompt').hidden=$('submission-form').hidden;
     renderTrackOptions(module);
     $('module-help').textContent = module.state === 'locked' ? module.prerequisite : module.state === 'completed' ? 'Well done. Your progress has been saved.' : module.state === 'unlocked' ? 'Your Tier 1 access is active.' : 'Take your time. Your progress will be saved when the server confirms it.';
     $('submit-button').disabled = busy || stopped;
@@ -420,7 +435,7 @@
     if ($('lesson-content')) {
       $('lesson-content').hidden = !canRead;
       if (canRead) {
-        for (const [id, value] of Object.entries({ 'lesson-goal': lesson.goal, 'lesson-time': lesson.time, 'lesson-learn': lesson.learn, 'lesson-task': lesson.task, 'reflection-question': lesson.question, 'lesson-practice': lesson.practice })) $(id).textContent = value;
+        for (const [id, value] of Object.entries({ 'lesson-goal': lesson.goal, 'lesson-time': lesson.time, 'lesson-learn': lesson.learn, 'lesson-task': lesson.task, 'lesson-practice': lesson.practice })) $(id).textContent = value;
       }
     }
     if ($('saved-work')) {
@@ -475,16 +490,16 @@
   $('submission-form').addEventListener('submit', async event => {
     event.preventDefault();
     if (busy || !snapshot) return;
-    const module = snapshot.modules.find(item => item.id === selected), submission = $('submission').value.trim();
-    if (!module || module.state !== 'available' || !submission) return;
+    const module = snapshot.modules.find(item => item.id === selected), submission = $('gemini-prompt').value.trim();
+    if (!module || module.state !== 'available') return;
+    if (!submission) {notice('Choose a prompt or write one before completing the lesson.');return;}
+    if (submission.length>10000){notice('Keep your prompt within 10,000 characters.');return;}
     busy = true; renderModule();
     try {
-      const reflection = $('reflection')?.value.trim() || '';
-      if (reflection.length < 20) throw new Error('Describe what you observed in at least 20 characters.');
       const dayNum = Number(module.id.slice(4));
-      await request('/api/v1/curriculum/complete', { method: 'POST', body: JSON.stringify({ day: dayNum, submission: submission + "\n\nReflection: " + reflection }) });
+      await request('/api/v1/curriculum/complete', { method: 'POST', body: JSON.stringify({ day: dayNum, submission }) });
       try { localStorage.removeItem(draftKey()); } catch (_) {}
-      $('submission').value = ''; if ($('reflection')) $('reflection').value = ''; selected = null; await refresh();
+      $('gemini-prompt').value = ''; selected = null; await refresh();
       updateSocialShare(dayNum);
     } catch (error) { notice(error.message); }
     finally { busy = false; renderModule(); }
@@ -522,18 +537,15 @@
       status.textContent='Select and copy the website address manually, then open it in Chrome or Safari.';
     }
   });
-  for (const id of ['gemini-prompt', 'submission', 'reflection']) $(id)?.addEventListener('input', saveDraft);
+  $('gemini-prompt')?.addEventListener('input',()=>{updatePromptSelection();saveDraft();});
   $('btn-clear-draft')?.addEventListener('click', () => {
-    for (const id of ['gemini-prompt', 'submission', 'reflection']) if ($(id)) $(id).value = '';
+    if ($('gemini-prompt')) $('gemini-prompt').value = '';
+    updatePromptSelection();
     try { localStorage.removeItem(draftKey()); } catch (_) {}
     notice('This lesson’s local draft was cleared. Submitted work is unchanged.');
   });
   $('btn-use-prompt')?.addEventListener('click', () => {
-    const prompt = $('gemini-prompt')?.value || '';
-    if (prompt && $('submission')) {
-      $('submission').value = prompt;
-      $('submission').focus(); saveDraft();
-    }
+    if(!$('submission-form').hidden){$('submission-form').scrollIntoView?.({behavior:'smooth',block:'center'});$('submit-button').focus({preventScroll:true});}
   });
 
   $('btn-copy-share')?.addEventListener('click', () => {
