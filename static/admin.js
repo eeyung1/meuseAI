@@ -71,6 +71,8 @@
   }
 
   function showAuth() {
+    $('pilot-interest-list')?.replaceChildren();
+    if($('pilot-interest-status'))$('pilot-interest-status').textContent='';
     if ($('admin-auth-card')) $('admin-auth-card').hidden = false;
     if ($('admin-portal-content')) $('admin-portal-content').hidden = true;
     if ($('admin-logout-btn')) $('admin-logout-btn').hidden = true;
@@ -109,12 +111,28 @@
       const data = await res.json();
       showPortal();
       renderShares(data.shares || []);
+      await loadInterest();
     } catch (err) {
       if (errEl) {
         errEl.textContent = err.message;
         errEl.hidden = false;
       }
     }
+  }
+
+  async function loadInterest(){
+    const token=currentToken;
+    try{
+      const res=await fetch('/api/v1/admin/tier-1-interest',{headers:{Authorization:'Bearer '+token}});
+      if(token!==currentToken||!token)return;
+      if(res.status===401){showAuth();return;}
+      if(!res.ok)throw Error('Could not load pilot interest. Refresh to retry.');
+      const data=await res.json();if(token!==currentToken)return;
+      const list=$('pilot-interest-list');list.replaceChildren();
+      const entries=data.entries||[];
+      $('pilot-interest-status').textContent=entries.length+' learner(s) registered interest.';
+      for(const item of entries){const li=document.createElement('li');const tracks=(item.tracks||'').split(',').map(t=>t==='video'?'CapCut AI video':'Lovable landing pages').join(' + ');li.textContent=item.name+' · '+item.email+' · '+tracks;list.append(li);}
+    }catch(error){if(token===currentToken)$('pilot-interest-status').textContent=error.message;}
   }
 
   function renderShares(shares) {

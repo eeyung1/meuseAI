@@ -279,3 +279,10 @@ test('Gemini link copy works with a manual fallback and leaves the prompt unchan
  await h.element('copy-gemini-link').listeners.click();assert.equal(copied,'https://gemini.google.com/');assert.match(h.element('gemini-launch-status').textContent,/copy your prompt again/);assert.equal(h.element('gemini-prompt').value,'My creative prompt');
  h.context.navigator.clipboard.writeText=async()=>{throw Error('blocked');};await h.element('copy-gemini-link').listeners.click();assert.equal(h.element('gemini-web-address').selected,true);assert.match(h.element('gemini-launch-status').textContent,/manually/);
 });
+
+test('pilot saves non-binding track interest instead of starting checkout',async()=>{
+ let interest,checkout=false;
+ const h=harness((path,options)=>{if(path.includes('/payments/checkout')){checkout=true;return ok({});}if(path==='/api/v1/tier-1/interest'){interest=JSON.parse(options.body);return ok({status:'interest_saved'});}const p=profile();p.pilot_mode=true;p.modules[4].state='available';p.interested_tracks=['video'];return ok(p);});await settle();h.nodes[4].listeners.click();
+ assert.match(h.element('checkout-button').textContent,/Register interest/);assert.match(h.element('tier1-purchase-note').textContent,/No payment/);assert.match(h.element('tier1-interest-status').textContent,/CapCut/);
+ await h.element('checkout-button').listeners.click();assert.deepEqual(interest.tracks,['landing_pages']);assert.equal(checkout,false);
+});

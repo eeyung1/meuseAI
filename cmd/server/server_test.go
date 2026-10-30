@@ -357,3 +357,22 @@ func TestVideoOnlyProvisioningOmitsLovableAccess(t *testing.T) {
 		t.Fatal("incorrect provisioning", messages)
 	}
 }
+
+func TestPilotModeEnvironmentDefaults(t *testing.T) {
+	for key, value := range map[string]string{"MEUSEAI_DB_DRIVER": "sqlite", "MEUSEAI_DB_DSN": ":memory:", "MEUSEAI_DRY_RUN": "true", "MEUSEAI_PILOT_MODE": ""} {
+		t.Setenv(key, value)
+	}
+	config, err := ConfigFromEnv()
+	if err != nil || !config.PilotMode {
+		t.Fatal("pilot must default on", err)
+	}
+	t.Setenv("MEUSEAI_PILOT_MODE", "false")
+	config, err = ConfigFromEnv()
+	if err != nil || config.PilotMode {
+		t.Fatal("explicit paid mode ignored", err)
+	}
+	t.Setenv("MEUSEAI_PILOT_MODE", "typo")
+	if _, err = ConfigFromEnv(); err == nil {
+		t.Fatal("invalid pilot config accepted")
+	}
+}

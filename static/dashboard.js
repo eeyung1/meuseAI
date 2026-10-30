@@ -361,6 +361,16 @@
     $('checkout-button').textContent = `Unlock ${count || 1} Tier 1 track${count>1?'s':''} · ₦${(price*count).toLocaleString()}${discount}`;
     $('checkout-button').hidden = !visible || (owned.landing_pages && owned.video);
     $('checkout-button').disabled = !count || busy || stopped;
+    if(snapshot.pilot_mode){
+      $('checkout-button').textContent='Register interest · No payment';
+      $('track-total').textContent=count?`Planned tuition: ₦${(price*count).toLocaleString()} for ${count} track${count>1?'s':''}${discount}. No charge during this pilot.`:'Select one or both tracks to register interest.';
+      $('tier1-purchase-note').textContent='Free pilot: register non-binding interest after the sprint. No payment is collected, no place is reserved and paid tracks do not unlock. Planned tuition is ₦5,000 per track or ₦10,000 for both before any earned XP discount. External tool costs are separate.';
+      const interested=snapshot.interested_tracks||[];
+      if(interested.length){$('tier1-interest-status').hidden=false;$('tier1-interest-status').textContent='Saved interest: '+interested.map(t=>t==='video'?'CapCut AI video':'Lovable landing pages').join(' + ')+'. You can update your selection. No payment taken.';}
+    }else{
+      $('tier1-interest-status').hidden=true;
+    }
+
     $('open-landing-track').hidden = !visible || !owned.landing_pages;
     $('open-video-track').hidden = !visible || !owned.video;
     if (!visible) { guideRevision++; $('paid-track-guide').hidden=true; }
@@ -575,6 +585,10 @@
     if (busy || !selectedTracks.size) return;
     busy = true; renderModule();
     try {
+      if(snapshot.pilot_mode){
+        await request('/api/v1/tier-1/interest',{method:'POST',body:JSON.stringify({tracks:[...selectedTracks]})});
+        await refresh();notice('Interest saved. No payment was taken and no paid track was unlocked.');return;
+      }
       const result = await request('/api/v1/payments/checkout', { method: 'POST', body: JSON.stringify({ tier: 'tier_1', tracks: [...selectedTracks] }) });
       const target = new URL(result.authorization_url);
       if (target.protocol !== 'https:' || target.host !== 'checkout.paystack.com' || target.username || target.password) throw new Error('Checkout is unavailable. Please try again.');

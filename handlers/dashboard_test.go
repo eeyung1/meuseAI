@@ -302,3 +302,15 @@ func TestPaidTrackContentIsEntitlementGated(t *testing.T) {
 		})
 	}
 }
+
+func TestPilotSnapshotReturnsLatestInterest(t *testing.T) {
+	database, d, mux := dashboardFixture(t, false)
+	d.SetPilotMode(true)
+	if _, err := database.Exec(`INSERT INTO activity_logs(student_id,event_type,details) VALUES('a','tier1_interest','{"tracks":"video"}')`); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := dashboardRead(t, mux)
+	if !snapshot.PilotMode || len(snapshot.InterestedTracks) != 1 || snapshot.InterestedTracks[0] != "video" {
+		t.Fatal("pilot state missing", snapshot.InterestedTracks)
+	}
+}

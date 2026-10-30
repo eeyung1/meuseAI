@@ -20,6 +20,7 @@ import (
 )
 
 type Config struct {
+	PilotMode                                          bool
 	Database                                           db.Config
 	PublicURL                                          string
 	SessionKey                                         []byte
@@ -110,7 +111,7 @@ func New(ctx context.Context, config Config) (*App, error) {
 		return nil, err
 	}
 	curriculum.WithAuth(a.identity, a.admin)
-	payment, err := handlers.NewPayment(handlers.PaymentConfig{Database: database, Paystack: client, StudentIdentity: a.identity, AdminAuthorized: a.admin})
+	payment, err := handlers.NewPayment(handlers.PaymentConfig{Database: database, Paystack: client, StudentIdentity: a.identity, AdminAuthorized: a.admin, PilotMode: config.PilotMode})
 	if err != nil {
 		return nil, err
 	}
@@ -126,6 +127,7 @@ func New(ctx context.Context, config Config) (*App, error) {
 	intake.Register(mux)
 	curriculum.Register(mux)
 	payment.Register(mux)
+	a.dashboard.SetPilotMode(config.PilotMode)
 	a.dashboard.Register(mux)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), time.Second)

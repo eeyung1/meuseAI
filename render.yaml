@@ -14,6 +14,8 @@ services:
       - key: MEUSEAI_ADMIN_TOKEN
         generateValue: true
       - key: MEUSEAI_DRY_RUN
+        value: "false"
+      - key: MEUSEAI_PILOT_MODE
         value: "true"
       - key: PAYSTACK_SECRET_KEY
         sync: false

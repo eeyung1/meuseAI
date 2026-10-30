@@ -123,3 +123,8 @@ test('approving a share posts to /api/v1/admin/social-shares/review', async () =
 
   assert.deepEqual(reviewPayload, { share_id: 42, action: 'approve' });
 });
+
+test('admin sees latest pilot interest without interpreting names as HTML',async()=>{
+ const h=adminHarness(path=>path==='/api/v1/admin/tier-1-interest'?ok({entries:[{name:'<img onerror=x>',email:'pilot@example.com',tracks:'landing_pages,video'}]}):ok({shares:[]}), 'secret-token-123');await settle();
+ assert.equal(h.element('pilot-interest-list').children.length,1);assert.match(h.element('pilot-interest-list').children[0].textContent,/<img onerror=x>.*Lovable.*CapCut/);
+});

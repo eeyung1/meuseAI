@@ -65,6 +65,17 @@ func ConfigFromEnv() (Config, error) {
 			DSN:    os.Getenv("MEUSEAI_DB_DSN"),
 		},
 	}
+	config.PilotMode = true
+	if raw := os.Getenv("MEUSEAI_PILOT_MODE"); raw != "" {
+		var err error
+		config.PilotMode, err = strconv.ParseBool(raw)
+		if err != nil {
+			return config, errors.New("invalid MEUSEAI_PILOT_MODE")
+		}
+	}
+	if config.PilotMode {
+		config.Logger.Print("free pilot enabled; new paid checkout is paused")
+	}
 	if config.Database.Driver == "" {
 		config.Database.Driver = "sqlite"
 	}

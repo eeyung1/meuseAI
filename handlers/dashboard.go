@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/eeyung1/meuseAI/db"
@@ -19,17 +20,19 @@ import (
 
 type DashboardIdentity func(*http.Request) (string, error)
 type Dashboard struct {
-	database *db.DB
-	hub      *telemetry.Hub
-	identity DashboardIdentity
+	database  *db.DB
+	hub       *telemetry.Hub
+	identity  DashboardIdentity
+	pilotMode bool
 }
 
 func NewDashboard(database *db.DB, hub *telemetry.Hub, identity DashboardIdentity) (*Dashboard, error) {
 	if database == nil || database.DB == nil || hub == nil || identity == nil {
 		return nil, errors.New("dashboard requires database, hub and student authentication")
 	}
-	return &Dashboard{database, hub, identity}, nil
+	return &Dashboard{database: database, hub: hub, identity: identity}, nil
 }
+func (d *Dashboard) SetPilotMode(enabled bool) { d.pilotMode = enabled }
 func (d *Dashboard) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/dashboard/me", d.Me)
 	mux.HandleFunc("GET /api/v1/tier-1/{track}", d.Track)
@@ -78,25 +81,27 @@ type DashboardShare struct {
 	XPAwarded int    `json:"xp_awarded"`
 }
 type DashboardSnapshot struct {
-	Tier1Landing    bool                `json:"tier1_landing"`
-	Tier1Video      bool                `json:"tier1_video"`
-	StudentID       string              `json:"student_id"`
-	Name            string              `json:"full_name"`
-	XP              int                 `json:"xp"`
-	Streak          int                 `json:"streak_days"`
-	Stage           string              `json:"current_stage"`
-	Funnel          string              `json:"funnel_tier"`
-	Engagement      string              `json:"engagement_status"`
-	Verified        bool                `json:"email_verified"`
-	Unsubscribed    bool                `json:"unsubscribed"`
-	Tier2Ready      bool                `json:"tier_2_ready"`
-	Rank            int                 `json:"rank"`
-	DiscountPercent int                 `json:"discount_percent"`
-	Tier1PriceNaira int                 `json:"tier_1_price_naira"`
-	SocialShares    []DashboardShare    `json:"social_shares"`
-	Modules         []DashboardModule   `json:"modules"`
-	Leaderboard     []DashboardPeer     `json:"leaderboard"`
-	Activity        []DashboardActivity `json:"activity"`
+	PilotMode        bool                `json:"pilot_mode"`
+	InterestedTracks []string            `json:"interested_tracks"`
+	Tier1Landing     bool                `json:"tier1_landing"`
+	Tier1Video       bool                `json:"tier1_video"`
+	StudentID        string              `json:"student_id"`
+	Name             string              `json:"full_name"`
+	XP               int                 `json:"xp"`
+	Streak           int                 `json:"streak_days"`
+	Stage            string              `json:"current_stage"`
+	Funnel           string              `json:"funnel_tier"`
+	Engagement       string              `json:"engagement_status"`
+	Verified         bool                `json:"email_verified"`
+	Unsubscribed     bool                `json:"unsubscribed"`
+	Tier2Ready       bool                `json:"tier_2_ready"`
+	Rank             int                 `json:"rank"`
+	DiscountPercent  int                 `json:"discount_percent"`
+	Tier1PriceNaira  int                 `json:"tier_1_price_naira"`
+	SocialShares     []DashboardShare    `json:"social_shares"`
+	Modules          []DashboardModule   `json:"modules"`
+	Leaderboard      []DashboardPeer     `json:"leaderboard"`
+	Activity         []DashboardActivity `json:"activity"`
 }
 
 func dashboardJSON(w http.ResponseWriter, status int, value any) {
@@ -147,7 +152,7 @@ func (d *Dashboard) Stream(w http.ResponseWriter, r *http.Request) {
 	d.hub.Serve(w, r, id)
 }
 func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot, error) {
-	result := DashboardSnapshot{StudentID: id, Modules: []DashboardModule{}, Leaderboard: []DashboardPeer{}, Activity: []DashboardActivity{}, SocialShares: []DashboardShare{}}
+	result := DashboardSnapshot{PilotMode: d.pilotMode, InterestedTracks: []string{}, StudentID: id, Modules: []DashboardModule{}, Leaderboard: []DashboardPeer{}, Activity: []DashboardActivity{}, SocialShares: []DashboardShare{}}
 	tx, err := d.database.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true})
 	if err != nil {
 		return result, err
@@ -162,6 +167,19 @@ func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot,
 		return result, err
 	}
 	result.Unsubscribed = unsubscribed.Valid
+	var interestRaw string
+	interestErr := tx.QueryRowContext(ctx, "SELECT details FROM activity_logs WHERE student_id=$1 AND event_type='tier1_interest' ORDER BY id DESC LIMIT 1", id).Scan(&interestRaw)
+	if interestErr != nil && !errors.Is(interestErr, sql.ErrNoRows) {
+		return result, interestErr
+	}
+	if interestErr == nil {
+		var interest struct {
+			Tracks string `json:"tracks"`
+		}
+		if json.Unmarshal([]byte(interestRaw), &interest) == nil {
+			result.InterestedTracks = strings.Split(interest.Tracks, ",")
+		}
+	}
 
 	// Query social shares
 	sRows, sErr := tx.QueryContext(ctx, "SELECT day_number, share_url, platform, status, xp_awarded FROM social_shares WHERE student_id=$1 ORDER BY day_number ASC", id)
@@ -244,6 +262,9 @@ func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot,
 	result.Tier1PriceNaira = baseNaira - (baseNaira * discountPercent / 100)
 
 	tierDesc := fmt.Sprintf("Choose Lovable landing pages or AI video generation with CapCut. Each track is ₦%d; both are ₦%d. Base price: ₦5,000 per track. External tool costs are separate.", result.Tier1PriceNaira, result.Tier1PriceNaira*2)
+	if d.pilotMode {
+		tierDesc = "Free pilot: register your interest in Lovable landing pages, AI video with CapCut, or both. No payment is collected and no paid track unlocks. Planned tuition is shown for feedback."
+	}
 	result.Modules = append(result.Modules, DashboardModule{ID: "tier_1", Title: "Tier 1 · Choose your learning tracks", Description: tierDesc, State: tierState, Prerequisite: "Complete all four days"})
 	if result.Verified && !result.Unsubscribed {
 		if err = tx.QueryRowContext(ctx, "SELECT COUNT(*)+1 FROM students WHERE email_verified=TRUE AND unsubscribed_at IS NULL AND xp>$1", result.XP).Scan(&result.Rank); err != nil {
@@ -304,6 +325,8 @@ func dashboardEventTitle(event string) string {
 		return "Email verified"
 	case "complete_day", "day_completed", "complete":
 		return "Learning progress updated"
+	case "tier1_interest":
+		return "Tier 1 interest saved (no payment)"
 	case "social_share_submitted":
 		return "Submitted social share link for review"
 	case "social_share_approved":
