@@ -36,3 +36,56 @@ header{flex-wrap:wrap}
 [data-appearance=light] .share-btn.whatsapp{background:#13783c}[data-appearance=light] .share-btn.facebook{background:#1469d1}
 
 [data-appearance=light] .admin-layout-10,[data-appearance=light] .status-icon.error{color:var(--danger)}[data-appearance=light] .verify-box{box-shadow:0 6px 22px #41230b0c}
+
+/* Customer feedback: neutral surfaces, restrained accents and readable hierarchy. */
+:root[data-appearance=dark]{--bg:#111214;--surface:#1b1d20;--elevated:#25272b;--border:#42464d;--text:#f3f4f6;--muted:#b8bec8;--yellow:#f2c66d;--yellow-hover:#ffda8e;--border-glow:#f2c66d;--accent-blue:#a8c9f5}
+body{line-height:1.65}
+header .brand-dot,.step-badge,.primary-accent,.mode-pill.active,.node.available{box-shadow:none}
+[data-appearance=dark] header{background:rgba(27,29,32,.97)}
+.eyebrow{color:var(--muted);letter-spacing:1.1px}
+[data-appearance] :is(.badge-pill,.micro-pill,.pill-track,.pill-track.highlight,.discount-banner){background:var(--elevated);border-color:var(--border);color:var(--text);box-shadow:none}
+[data-appearance] :is(.action-card,.upsell-card,.step-card,.tier-box.featured,.gemini-studio-box){border-color:var(--border);box-shadow:none}
+.hero{padding-top:48px}
+.hero-title{max-width:800px;margin-left:auto;margin-right:auto;font-size:clamp(34px,5vw,58px);line-height:1.12;letter-spacing:-1.5px}
+.hero-subtitle{max-width:640px;font-size:17px;line-height:1.75}
+.hero .badge-pill{font-size:11px;letter-spacing:.7px}
+.action-card{margin-top:28px}
+[data-appearance] .step-badge{background:var(--elevated);color:var(--text);border:1px solid var(--border)}
+.step-exercise{background:var(--elevated)}
+[data-appearance] :is(.profile-stats strong,.module-meta strong,.metric strong,.xp-tag){color:var(--text)}
+[data-appearance] :is(.avatar,.nav-active){background:var(--elevated)!important;color:var(--text)!important}
+.nav-active{border-left:3px solid var(--yellow)}
+.mode-pill.active{background:var(--elevated)!important;color:var(--text)!important;outline:1px solid var(--border)}
+[data-appearance] :is(.share-btn.facebook,.share-btn.twitter,.share-btn.linkedin,.share-btn.whatsapp){background:var(--surface);color:var(--text);border:1px solid var(--border)}
+:is(.share-btn,.contact-link):hover{border-color:var(--yellow)}
+[data-appearance] .celebration-box{background:var(--surface);box-shadow:none;border-color:var(--border)}
+.micro-note{color:var(--muted)}
+.lab-workflow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;list-style:decimal;padding:20px 20px 20px 36px;margin:18px 0;background:var(--elevated);border:1px solid var(--border);border-radius:12px}
+.lab-workflow li{padding-right:10px;font-size:13px}
+.lab-workflow strong,.lab-workflow span{display:block}
+.lab-workflow span{color:var(--muted);margin-top:4px}
+#studio-copied-note{padding:12px;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px}
+#prompt-lab-dialog .small,#prompt-lab-dialog .micro-note{font-size:13px}
+#prompt-lab-dialog textarea{font-size:16px;line-height:1.6}
+.site-footer{margin-top:28px;padding:24px 0;border-top:1px solid var(--border);font-size:13px}
+footer .footer-links{display:flex;justify-content:center;flex-wrap:wrap;gap:8px 20px}
+footer .footer-links a{display:inline-flex;align-items:center;min-height:44px;text-decoration:underline;text-underline-offset:4px}
+.creation-walkthrough{width:min(900px,calc(100% - 32px));margin:0 auto 32px;text-align:left;padding:24px;border:1px solid var(--border);border-radius:16px;background:var(--surface)}
+.creation-walkthrough h2{font-size:24px;line-height:1.3}
+.creation-walkthrough li{margin-bottom:14px;line-height:1.7}
+.pilot-banner{max-width:900px;margin:0 auto 32px;padding:16px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:12px;font-size:14px}
+@media(max-width:680px){
+ .hero{padding-top:28px}
+ .hero-subtitle{font-size:16px}
+ .lab-workflow{grid-template-columns:minmax(0,1fr);gap:14px;padding:16px 16px 16px 34px}
+ .lab-workflow li{padding-right:0}
+ .lab-workflow span{margin-top:0}
+ .creation-walkthrough{padding:20px}
+ .creation-walkthrough h2{font-size:21px}
+ .pilot-banner{margin-left:16px;margin-right:16px}
+ header{grid-template-columns:minmax(0,1fr) minmax(0,158px)}
+ header>.brand{display:block;white-space:nowrap;font-size:21px}
+ header .brand-dot{display:inline-block;vertical-align:middle;width:8px;height:8px;margin-right:6px}
+ header .admin-layout-1{display:block;white-space:normal}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important;animation:none!important}}

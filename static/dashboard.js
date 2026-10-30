@@ -252,7 +252,7 @@
     const waBtn = $('share-whatsapp-btn');
     if (waBtn) waBtn.href = `https://api.whatsapp.com/send?text=${encodeURIComponent(quote + ' ' + shareUrl)}`;
 
-    if ($('celebration-title')) $('celebration-title').textContent = `Day ${dayNum} Conquered! +250 XP Awarded`;
+    if ($('celebration-title')) $('celebration-title').textContent = `Day ${dayNum} complete · +250 XP awarded`;
 
     // Social Share Link Status
     const existingShare = snapshot?.social_shares?.find(s => s.day === dayNum);
