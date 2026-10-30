@@ -784,3 +784,5 @@ footer {
 .tier-track-picker{border:1px solid var(--border);border-radius:10px;padding:12px;margin:16px 0}.tier-track-picker label{display:block;margin:12px 0;font-size:14px;line-height:1.5}.tier-track-picker input{margin-right:8px}.tier-box .price small{font-size:14px}.tier-box a{color:var(--yellow)}#preview-track-total{font-weight:700;margin:16px 0}
 
 .pilot-banner{max-width:720px;margin:24px auto;padding:16px;border:1px solid var(--border);border-radius:12px;font-size:14px;line-height:1.7;text-align:left}
+
+.contact-section{margin:28px auto;padding:20px;border:1px solid var(--border);border-radius:16px;max-width:960px;text-align:left;overflow-wrap:anywhere}.contact-section h2{font-size:20px;margin-bottom:8px}.contact-section p{font-size:14px;color:var(--muted)}.contact-links{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px}.contact-link{display:flex;align-items:center;min-height:44px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;color:var(--yellow);font-size:14px;overflow-wrap:anywhere}@media(max-width:680px){.contact-links{display:grid;grid-template-columns:minmax(0,1fr)}.contact-section{width:100%;min-width:0}}

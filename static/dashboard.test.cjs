@@ -73,9 +73,9 @@ test('renders server state safely, selects locked modules and reconnects', async
 
 test('submits selected day and applies XP only after confirmed snapshot', async () => {
   let saved = false; const h = harness((path, options) => {
-    if (path === '/api/v1/curriculum/complete') { assert.deepEqual(JSON.parse(options.body), { day: 2, submission: 'My image prompt\n\nReflection: The side lighting changed the mood.' }); saved = true; return ok({}); }
+    if (path === '/api/v1/curriculum/complete') { assert.deepEqual(JSON.parse(options.body), { day: 2, submission: 'My image prompt' }); saved = true; return ok({}); }
     const data = profile(); if (saved) { data.xp = 500; data.modules[1].state = 'completed'; data.modules[2].state = 'available'; } return ok(data);
-  }); await settle(); h.element('reflection').value = 'The side lighting changed the mood.'; h.element('submission').value = ' My image prompt ';
+  }); await settle(); h.element('gemini-prompt').value = ' My image prompt ';
   const promise = h.element('submission-form').listeners.submit({ preventDefault() {} });
   assert.equal(h.element('xp').textContent, '250'); await promise; await settle();
   assert.equal(h.element('xp').textContent, '500'); assert.equal(h.element('module-title').textContent, 'Module 3');
@@ -83,8 +83,8 @@ test('submits selected day and applies XP only after confirmed snapshot', async 
 
 test('failed submissions retain prompt and do not invent progress', async () => {
   const h = harness(path => path === '/api/v1/curriculum/complete' ? { ok: false, status: 503 } : ok(profile())); await settle();
-  h.element('reflection').value = 'The side lighting changed the mood.'; h.element('submission').value = 'Unsaved exercise'; await h.element('submission-form').listeners.submit({ preventDefault() {} });
-  assert.equal(h.element('xp').textContent, '250'); assert.equal(h.element('submission').value, 'Unsaved exercise');
+  h.element('gemini-prompt').value = 'Unsaved exercise'; await h.element('submission-form').listeners.submit({ preventDefault() {} });
+  assert.equal(h.element('xp').textContent, '250'); assert.equal(h.element('gemini-prompt').value, 'Unsaved exercise');
   assert.match(h.element('notice').textContent, /try again/); assert.equal(h.element('submit-button').disabled, false);
 });
 
@@ -131,7 +131,7 @@ test('submitting social share link posts to /api/v1/curriculum/share-link', asyn
   await settle();
 
   // Complete day 2 to trigger celebration
-  h.element('reflection').value = 'The side lighting changed the mood.'; h.element('submission').value = 'Test prompt';
+  h.element('gemini-prompt').value = 'Test prompt';
   await h.element('submission-form').listeners.submit({ preventDefault() {} });
   await settle();
 
@@ -226,7 +226,7 @@ test('dashboard keeps practice controls without image uploads or gallery', () =>
  const button=html.indexOf('id="open-prompt-lab"'),title=html.indexOf('TODAY’S LEARNING');
  assert.ok(button<title);
  const dialog=html.indexOf('<dialog id="prompt-lab-dialog"');
- for(const id of ['gemini-studio','submission-form','reflection','submit-button'])assert.ok(html.indexOf('id="'+id+'"')>dialog);
+ for(const id of ['gemini-studio','submission-form','submit-button'])assert.ok(html.indexOf('id="'+id+'"')>dialog);
 });
 
 test('every lesson offers ten distinct prompts in both modes, matched to its skill', async () => {
@@ -285,4 +285,25 @@ test('pilot saves non-binding track interest instead of starting checkout',async
  const h=harness((path,options)=>{if(path.includes('/payments/checkout')){checkout=true;return ok({});}if(path==='/api/v1/tier-1/interest'){interest=JSON.parse(options.body);return ok({status:'interest_saved'});}const p=profile();p.pilot_mode=true;p.modules[4].state='available';p.interested_tracks=['video'];return ok(p);});await settle();h.nodes[4].listeners.click();
  assert.match(h.element('checkout-button').textContent,/Register interest/);assert.match(h.element('tier1-purchase-note').textContent,/No payment/);assert.match(h.element('tier1-interest-status').textContent,/CapCut/);
  await h.element('checkout-button').listeners.click();assert.deepEqual(interest.tracks,['landing_pages']);assert.equal(checkout,false);
+});
+
+
+test('Prompt Lab uses one editable lesson field and selecting a theme is enough to complete',async()=>{
+ let submission;
+ const h=harness((path,options)=>{if(path==='/api/v1/curriculum/complete'){submission=JSON.parse(options.body);return ok({});}return ok(profile());});await settle();
+ h.element('open-prompt-lab').listeners.click();assert.equal(h.element('prompt-lab-dialog-title').focused,true);assert.equal(h.element('prompt-lab-dialog').scrollTop,0);
+ const choices=h.element('studio-chips').children;choices[4].listeners.click();const expected=h.element('gemini-prompt').value;
+ assert.equal(choices[4].attributes['aria-pressed'],'true');assert.equal(choices[0].attributes['aria-pressed'],'false');assert.match(h.element('selected-prompt-name').textContent,/5\./);
+ await h.element('submission-form').listeners.submit({preventDefault(){}});assert.equal(submission.submission,expected);assert.equal(submission.day,2);
+ const html=fs.readFileSync(__dirname+'/dashboard.html','utf8');assert.ok(!html.includes('id="reflection"'));assert.ok(!html.includes('id="submission"'));assert.equal((html.match(/<textarea/g)||[]).length,1);
+});
+test('empty prompt cannot complete a lesson',async()=>{
+ let posts=0;const h=harness((path)=>{if(path.includes('/complete'))posts++;return ok(profile());});await settle();h.element('gemini-prompt').value='';await h.element('submission-form').listeners.submit({preventDefault(){}});assert.equal(posts,0);assert.match(h.element('notice').textContent,/Choose a prompt/);
+});
+test('landing and dashboard expose exact WhatsApp and email contacts',()=>{
+ for(const name of ['landing','dashboard']){const html=fs.readFileSync(__dirname+'/'+name+'.html','utf8');assert.ok(html.includes('https://wa.me/2348128162561?text='));assert.ok(html.includes('mailto:eyungemmanuel@gmail.com'));assert.ok(html.includes('Contact us'));}
+});
+
+test('legacy draft text restores into the single prompt without discarding old notes',async()=>{
+ const h=harness(()=>ok(profile()));await settle();const key='meuseai-draft:'+profile().full_name+':day_1';h.context.localStorage.setItem(key,JSON.stringify({submission:'My legacy exercise',reflection:'My earlier observations'}));h.nodes[0].listeners.click();assert.equal(h.element('gemini-prompt').value,'My legacy exercise');h.element('gemini-prompt').value='Updated prompt';h.element('gemini-prompt').listeners.input();const saved=JSON.parse(h.context.localStorage.getItem(key));assert.equal(saved.prompt,'Updated prompt');assert.equal(saved.reflection,'My earlier observations');
 });

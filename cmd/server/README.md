@@ -81,13 +81,13 @@ Migration 3 adds `curriculum_started_at` and `student_progress.delivered_at`. Ve
 
 Lessons release at verification + 0/24/48/72 hours and still require previous completion. The completion API rejects early access with 403 and `unlocks_at`; the dashboard uses `scheduled` and a local release date. Drip delivery cannot bypass the gate. Inactivity reminders use the persisted delivery time instead of unrelated profile changes. Authenticated `POST /api/v1/curriculum/resume` reopens a paused lesson's reminder window without granting XP or overriding unsubscribe.
 
-The Prompt Lab teaches short, sequential experiments, uses gender-neutral optional photo references, and provides separate Copy and Open Gemini actions. Clipboard failure offers manual selection. Prompt, submission and reflection drafts are stored per student/module in localStorage; do not enter sensitive information on shared devices. Submitted work is returned only in the authenticated student's own module snapshot. No image upload, automated quality grading, or Gemini API integration is claimed.
+The Prompt Lab teaches short, sequential experiments, uses gender-neutral optional photo references, and provides separate Copy and Open Gemini actions. Clipboard failure offers manual selection. The single editable prompt draft is stored per student/module in localStorage, with legacy draft fields preserved; do not enter sensitive information on shared devices. Submitted work is returned only in the authenticated student's own module snapshot. No image upload, automated quality grading, or Gemini API integration is claimed.
 
 Tier 1 uses a shared 1,000-XP/10% policy. Checkout stores its agreed amount; webhooks validate the signed amount against that record, including if XP changes later. Existing full-price pending checkouts remain valid. Rejected social-share links can be corrected and resubmitted; PostgreSQL review locks prevent double awards.
 
 ## Student creation and sharing flow
 
-The Gemini Prompt Lab button above Today's Learning opens the prompt tools and lesson/reflection form. Students copy a prompt, open external Gemini, paste it and generate their image there. No photo uploads or curated image gallery are provided by meuseAI. After completing the lesson, students post their own creation publicly with #meuseAI and submit its link for admin review. New approved shares award 250 bonus XP once per lesson; lesson completion separately awards 250 XP. Existing awards are retained unchanged.
+The Gemini Prompt Lab button above Today's Learning opens the prompt tools and lesson completion form. Students copy a prompt, open external Gemini, paste it and generate their image there. No photo uploads or curated image gallery are provided by meuseAI. After completing the lesson, students post their own creation publicly with #meuseAI and submit its link for admin review. New approved shares award 250 bonus XP once per lesson; lesson completion separately awards 250 XP. Existing awards are retained unchanged.
 
 The landing page explains this sequence. A walkthrough video can be added when the recording is available. Historical migration 4 and its stored data remain in place for database compatibility, but image upload, preview, publication and public image routes are removed.
 
@@ -122,3 +122,9 @@ Pilot readiness:
 - [ ] Remaining workspace free hours checked in Render Billing before invitations.
 - [ ] Gemini launch confirmed on a real phone.
 - [ ] Walkthrough recording supplied and embedded.
+
+## Contact and simplified mobile Prompt Lab
+
+Landing page and dashboard contact sections link to `https://wa.me/2348128162561` with a prefilled meuseAI help message, and `mailto:eyungemmanuel@gmail.com`. WhatsApp opens a message composer; nothing is sent automatically.
+
+The Prompt Lab launch button opens the modal at its beginning without automatically bringing up the phone keyboard. All ten themes appear as numbered choices in a bounded two-column mobile grid with scrolling, selected-state feedback and shortcuts to themes or the prompt. One editable prompt textarea is reused for completion; the separate submission and reflection textareas are removed. Choosing a theme is enough to populate the prompt. Completion still requires the learner to press Save prompt & complete lesson after practising in Gemini, and the server remains authoritative for XP/time gates. The sharing URL form remains separate for verified sharing XP. Existing submitted work is retained, and legacy local drafts can restore their submission into the single prompt field if no prompt draft exists.
