@@ -154,3 +154,9 @@ Embedded generation, cross-model execution, new academy subjects and hosting mig
 - [x] On phones, lesson controls appear before the circular progress card. Lesson reading and Prompt Lab instructions expand on demand.
 - [x] Closing the lab restores focus to the button used to open it; drafts and native Gemini links remain supported.
 - [ ] Confirm the shorter landing page and direct lesson entry on a learner's phone after deployment.
+
+## Tier 1 payment return
+
+Checkout supplies a server-configured absolute Paystack callback URL: `/tier-1` for Tier 1, `/dashboard` for Tier 2. Browser return parameters never grant access. The Tier 1 page reads the authenticated snapshot and briefly polls while signed webhook confirmation is pending, with a manual retry and sign-in recovery.
+
+Confirmed purchases show only their owned tracks and **In development**, with WhatsApp and email support. Dashboard purchased-track buttons open this status page. Landing and checkout disclose that lesson content is in development before payment. Test/live Paystack credentials remain operator-controlled.

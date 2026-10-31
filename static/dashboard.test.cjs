@@ -414,6 +414,6 @@ test('builder has three labelled steps, native keyboard controls and touch targe
 
 test('checkout presents Paystack, local bank transfer and instant access trust signals',()=>{
  const html=fs.readFileSync(__dirname+'/dashboard.html','utf8');
- for(const text of ['Paystack secure checkout','local bank transfer','Instant access after payment confirmation','Pro Bundle'])assert.ok(html.includes(text));
+ for(const text of ['Paystack secure checkout','local bank transfer','Purchase saved after payment confirmation','Pro Bundle'])assert.ok(html.includes(text));
  const css=fs.readFileSync(__dirname+'/dashboard.css','utf8');assert.match(css,/\.checkout-trust/);
 });

@@ -19,6 +19,7 @@ import (
 // user-supplied student header. Server bootstrap supplies the auth adapter.
 type PaymentIdentity func(*http.Request) (string, error)
 type PaymentConfig struct {
+ ReturnOrigin string
 	PilotMode       bool
 	Database        *db.DB
 	Paystack        *services.Paystack
@@ -191,7 +192,12 @@ func (p *Payment) Checkout(w http.ResponseWriter, r *http.Request) {
 	}
 	// Persist the expected reference/owner/price before calling the provider so a
 	// fast webhook can be validated. Ambiguous provider failures retain pending.
-	result, err := p.config.Paystack.Initialize(r.Context(), services.CheckoutRequest{Email: email, Amount: amount, Currency: services.PaystackCurrency, Reference: reference, Metadata: map[string]string{"student_id": id, "tier": input.Tier, "tracks": tracks}})
+	callbackURL := ""
+ if p.config.ReturnOrigin != "" {
+ callbackURL = strings.TrimRight(p.config.ReturnOrigin, "/") + "/dashboard"
+ if input.Tier == "tier_1" { callbackURL = strings.TrimRight(p.config.ReturnOrigin, "/") + "/tier-1" }
+ }
+ result, err := p.config.Paystack.Initialize(r.Context(), services.CheckoutRequest{CallbackURL: callbackURL, Email: email, Amount: amount, Currency: services.PaystackCurrency, Reference: reference, Metadata: map[string]string{"student_id": id, "tier": input.Tier, "tracks": tracks}})
 	if err != nil {
 		paymentError(w, 502, "checkout provider unavailable")
 		return

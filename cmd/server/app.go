@@ -111,7 +111,7 @@ func New(ctx context.Context, config Config) (*App, error) {
 		return nil, err
 	}
 	curriculum.WithAuth(a.identity, a.admin)
-	payment, err := handlers.NewPayment(handlers.PaymentConfig{Database: database, Paystack: client, StudentIdentity: a.identity, AdminAuthorized: a.admin, PilotMode: config.PilotMode})
+	payment, err := handlers.NewPayment(handlers.PaymentConfig{ReturnOrigin: a.origin, Database: database, Paystack: client, StudentIdentity: a.identity, AdminAuthorized: a.admin, PilotMode: config.PilotMode})
 	if err != nil {
 		return nil, err
 	}

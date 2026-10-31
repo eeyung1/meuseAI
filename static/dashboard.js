@@ -461,6 +461,7 @@
       $('tier1-interest-status').hidden=true;
     }
 
+    if (!snapshot.pilot_mode && visible) $('tier1-purchase-note').textContent += ' Tier 1 lessons are currently in development. After payment, visit your Tier 1 status page or contact us for details.';
     $('open-landing-track').hidden = !visible || !owned.landing_pages;
     $('open-video-track').hidden = !visible || !owned.video;
     if (!visible) { guideRevision++; $('paid-track-guide').hidden=true; }
@@ -469,23 +470,7 @@
     if ($(id).checked) selectedTracks.add(track); else selectedTracks.delete(track);
     renderModule();
   });
-  async function openTrack(track) {
-    const revision=++guideRevision;
-    try {
-      const guide=await request('/api/v1/tier-1/'+track);
-      if(revision!==guideRevision || selected!=='tier_1')return;
-      const root=$('paid-track-guide');root.replaceChildren();root.hidden=false;
-      const heading=document.createElement('h3');heading.textContent=guide.title;
-      const note=document.createElement('p');note.textContent=guide.cost_note;note.className='muted small';
-      const list=document.createElement('ol');for(const step of guide.steps){const li=document.createElement('li');li.textContent=step;list.append(li);}
-      const prompt=document.createElement('textarea');prompt.value=guide.prompt;prompt.rows=7;prompt.setAttribute('aria-label','Editable starter prompt for '+guide.title);
-      const copy=document.createElement('button');copy.type='button';copy.className='secondary';copy.textContent='Copy starter prompt';
-      const status=document.createElement('p');status.setAttribute('role','status');
-      copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(prompt.value);status.textContent='Copied. Open the tool and paste the prompt.';}catch(_){prompt.focus();prompt.select();status.textContent='Select and copy the prompt manually.';}});
-      const link=document.createElement('a');link.textContent='Open '+guide.title+' tool ↗';link.href=track==='video'?'https://www.capcut.com/tools/ai-video':'https://lovable.dev/';link.target='_blank';link.rel='noopener noreferrer';
-      root.append(heading,note,list,prompt,copy,status,link);
-    }catch(error){notice(error.message);}
-  }
+  function openTrack() { location.assign('/tier-1'); }
   $('open-landing-track')?.addEventListener('click',()=>openTrack('landing_pages'));
   $('open-video-track')?.addEventListener('click',()=>openTrack('video'));
 
