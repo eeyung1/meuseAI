@@ -314,3 +314,10 @@ func TestPilotSnapshotReturnsLatestInterest(t *testing.T) {
 		t.Fatal("pilot state missing", snapshot.InterestedTracks)
 	}
 }
+
+func TestTier1ReturnPage(t *testing.T) {
+ _, _, mux := dashboardFixture(t, false)
+ w := dashboardGet(mux, "/tier-1?reference=untrusted")
+ if w.Code != 200 || !strings.Contains(w.Body.String(), "In development") || !strings.Contains(w.Body.String(), "eyungemmanuel@gmail.com") { t.Fatal("Tier 1 status shell missing",w.Code) }
+ if w.Header().Get("Cache-Control") != "no-store" { t.Fatal("payment return must not cache") }
+}

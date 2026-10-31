@@ -47,6 +47,7 @@ func TierAmount(tier string) (int64, error) {
 }
 
 type CheckoutRequest struct {
+ CallbackURL string `json:"callback_url,omitempty"`
 	Email     string            `json:"email"`
 	Amount    int64             `json:"amount"`
 	Currency  string            `json:"currency"`
@@ -97,12 +98,13 @@ func (p *Paystack) Initialize(ctx context.Context, input CheckoutRequest) (Check
 		return zero, errors.New("invalid metadata")
 	}
 	body, err := json.Marshal(struct {
+ CallbackURL string `json:"callback_url,omitempty"`
 		Email     string `json:"email"`
 		Amount    int64  `json:"amount"`
 		Currency  string `json:"currency"`
 		Reference string `json:"reference"`
 		Metadata  string `json:"metadata"`
-	}{input.Email, input.Amount, input.Currency, input.Reference, string(metadata)})
+	}{input.CallbackURL, input.Email, input.Amount, input.Currency, input.Reference, string(metadata)})
 	if err != nil {
 		return zero, errors.New("invalid checkout request")
 	}

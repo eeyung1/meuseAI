@@ -26,6 +26,7 @@ func TestPaystackInitialize(t *testing.T) {
 	for _, tier := range []string{"tier_1", "tier_2"} {
 		t.Run(tier, func(t *testing.T) {
 			input := paystackInput()
+            input.CallbackURL = "https://example.com/tier-1"
 			input.Metadata["tier"] = tier
 			input.Amount, _ = TierAmount(tier)
 			p, err := NewPaystack("test-secret", &http.Client{Transport: paystackTransport(func(r *http.Request) (*http.Response, error) {
@@ -33,6 +34,7 @@ func TestPaystackInitialize(t *testing.T) {
 					t.Fatal("incorrect provider request")
 				}
 				var body struct {
+ CallbackURL string `json:"callback_url"`
 					Amount    int64  `json:"amount"`
 					Email     string `json:"email"`
 					Currency  string `json:"currency"`
@@ -46,7 +48,7 @@ func TestPaystackInitialize(t *testing.T) {
 				if err := json.Unmarshal([]byte(body.Metadata), &metadata); err != nil {
 					t.Fatal(err)
 				}
-				if body.Amount != input.Amount || body.Email != input.Email || body.Currency != "NGN" || metadata["tier"] != tier || metadata["student_id"] != "student" {
+				if body.CallbackURL != input.CallbackURL || body.Amount != input.Amount || body.Email != input.Email || body.Currency != "NGN" || metadata["tier"] != tier || metadata["student_id"] != "student" {
 					t.Fatal("checkout fields changed")
 				}
 				return paystackResponse(200, `{"status":true,"data":{"authorization_url":"https://checkout.paystack.com/code","access_code":"code","reference":"meuse-ref"}}`), nil

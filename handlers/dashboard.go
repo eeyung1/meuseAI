@@ -38,8 +38,9 @@ func (d *Dashboard) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/tier-1/{track}", d.Track)
 	mux.HandleFunc("GET /api/v1/telemetry/stream", d.Stream)
 	mux.HandleFunc("GET /dashboard", d.Page)
+ mux.HandleFunc("GET /tier-1", d.Tier1Page)
 
-	for _, name := range []string{"appearance.js", "appearance.css", "admin.css", "dashboard.css", "dashboard.js", "landing.css", "landing.js", "verify.js", "share.js", "admin.js"} {
+	for _, name := range []string{"tier1.js", "appearance.js", "appearance.css", "admin.css", "dashboard.css", "dashboard.js", "landing.css", "landing.js", "verify.js", "share.js", "admin.js"} {
 		name := name
 		mux.HandleFunc("GET /assets/"+name, func(w http.ResponseWriter, r *http.Request) { http.ServeFileFS(w, r, assets.Assets, name) })
 	}
@@ -252,7 +253,7 @@ func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot,
 	bundleNaira := 8000
 	result.Tier1BundleNaira = bundleNaira - (bundleNaira * discountPercent / 100)
 
-	tierDesc := fmt.Sprintf("Choose Lovable landing pages or AI video generation with CapCut for ₦%d each, or get both in the Pro Bundle for ₦%d. Secure Paystack checkout and instant access after confirmation.", result.Tier1PriceNaira, result.Tier1BundleNaira)
+	tierDesc := fmt.Sprintf("Choose Lovable landing pages or AI video generation with CapCut for ₦%d each, or get both in the Pro Bundle for ₦%d. Secure Paystack checkout. Purchase saved after confirmation; Tier 1 lessons are in development.", result.Tier1PriceNaira, result.Tier1BundleNaira)
 	if d.pilotMode {
 		tierDesc = "Free pilot: register your interest in Lovable landing pages, AI video with CapCut, or both. No payment is collected and no paid track unlocks. Planned tuition is shown for feedback."
 	}
@@ -394,4 +395,13 @@ func (d *Dashboard) pollTelemetry(ctx context.Context, cursor int64) (int64, err
 		}
 	}
 	return cursor, nil
+}
+
+// Tier1Page is a public shell; payment state is read from the authenticated API.
+func (d *Dashboard) Tier1Page(w http.ResponseWriter, r *http.Request) {
+ w.Header().Set("Cache-Control", "no-store")
+ w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
+ w.Header().Set("X-Content-Type-Options", "nosniff")
+ w.Header().Set("Referrer-Policy", "no-referrer")
+ http.ServeFileFS(w, r, assets.Assets, "tier1.html")
 }
