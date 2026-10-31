@@ -333,3 +333,67 @@ test('quick start revisits completed practice only when no lesson is available',
  blocked.element('quick-start-lab').listeners.click();
  assert.equal(blocked.element('prompt-lab-dialog').hidden,true);
 });
+
+test('three choices assemble live, keep wardrobe consistent and copy the current prompt', async () => {
+ const h=harness(()=>ok(profile()));await settle();
+ const vibes=h.element('studio-chips').children;
+ const wardrobe=h.element('builder-wardrobe').children;
+ const light=h.element('builder-light').children;
+ assert.equal(wardrobe.length,4);assert.equal(light.length,4);
+ vibes[2].listeners.click();const original=h.element('gemini-prompt').value;
+ wardrobe[1].listeners.click();light[2].listeners.click();
+ const assembled=h.element('gemini-prompt').value;
+ assert.notEqual(assembled,original);
+ assert.match(assembled,/tailored suit/);assert.match(assembled,/simple portrait studio/);assert.match(assembled,/soft, flattering studio light/);
+ assert.match(assembled,/attached reference image/);
+ assert.equal(wardrobe[1].attributes['aria-pressed'],'true');assert.equal(wardrobe[0].attributes['aria-pressed'],'false');
+ assert.equal(light[2].attributes['aria-pressed'],'true');
+ let copied;h.context.navigator.clipboard.writeText=async value=>{copied=value;};
+ await h.element('btn-copy-prompt').listeners.click();assert.equal(copied,assembled);
+ assert.equal(h.element('studio-copied-note').hidden,false);
+ light[1].listeners.click();assert.equal(h.element('studio-copied-note').hidden,true);
+ assert.match(h.element('gemini-prompt').value,/warm sunset light/);
+ h.element('mode-scratch').listeners.click();assert.doesNotMatch(h.element('gemini-prompt').value,/reference image/);assert.match(h.element('gemini-prompt').value,/tailored suit/);
+});
+
+test('builder drafts restore choices, mode and custom wording without overwriting on refresh', async () => {
+ const h=harness(()=>ok(profile()));await settle();
+ h.element('studio-chips').children[3].listeners.click();
+ h.element('builder-wardrobe').children[2].listeners.click();
+ h.element('builder-light').children[3].listeners.click();
+ h.element('mode-scratch').listeners.click();
+ h.element('gemini-prompt').value='My carefully edited portrait';h.element('gemini-prompt').listeners.input();
+ await h.element('refresh-button').listeners.click();await settle();assert.equal(h.element('gemini-prompt').value,'My carefully edited portrait');
+ h.nodes[0].listeners.click();h.nodes[1].listeners.click();
+ assert.equal(h.element('gemini-prompt').value,'My carefully edited portrait');
+ assert.equal(h.element('mode-scratch').attributes['aria-pressed'],'true');
+ assert.equal(h.element('builder-wardrobe').children[2].attributes['aria-pressed'],'true');
+ assert.equal(h.element('builder-light').children[3].attributes['aria-pressed'],'true');
+ h.element('builder-wardrobe').children[1].listeners.click();
+ assert.match(h.element('gemini-prompt').value,/tailored suit/);assert.match(h.element('gemini-prompt').value,/pink and blue neon/);
+ assert.doesNotMatch(h.element('gemini-prompt').value,/evening gown/);
+});
+
+test('invalid stored choices and unavailable storage do not break the builder',async()=>{
+ const h=harness(()=>ok(profile()));await settle();
+ const key='meuseai-draft:'+profile().full_name+':day_1';
+ h.storage.set(key,JSON.stringify({prompt:'Preserved words',builder:{vibe:999,wardrobe:'<script>',light:'invalid'}}));
+ h.nodes[0].listeners.click();assert.equal(h.element('gemini-prompt').value,'Preserved words');
+ assert.equal(h.element('builder-wardrobe').children[0].attributes['aria-pressed'],'true');
+ h.context.localStorage.setItem=()=>{throw Error('storage denied');};
+ h.element('builder-light').children[2].listeners.click();assert.match(h.element('gemini-prompt').value,/studio light/);
+ const stale=h.element('builder-wardrobe').children[1];h.nodes[2].listeners.click();const before=h.element('gemini-prompt').value;
+ stale.listeners.click();assert.equal(h.element('gemini-prompt').value,before);assert.equal(h.element('gemini-studio').hidden,true);
+});
+
+test('builder has three labelled steps, native keyboard controls and touch targets',()=>{
+ const html=fs.readFileSync(__dirname+'/dashboard.html','utf8');
+ assert.equal((html.match(/<fieldset class="builder-step">/g)||[]).length,3);
+ for(const label of ['Choose your vibe','Wardrobe &amp; styling','Lighting &amp; environment'])assert.ok(html.includes(label));
+ assert.match(html,/aria-describedby="builder-edit-hint"/);
+ assert.match(html,/Changing a choice replaces your edits/);
+ const css=fs.readFileSync(__dirname+'/dashboard.css','utf8');
+ assert.match(css,/\.builder-choice, #studio-chips \.chip-btn \{ min-height:52px/);
+ assert.match(css,/\.builder-choice:focus-visible/);
+ assert.match(css,/#prompt-lab-dialog \.prompt-workbench textarea \{ font-family:inherit; font-size:16px/);
+});
