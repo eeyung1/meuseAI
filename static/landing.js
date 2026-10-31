@@ -5,7 +5,8 @@
 
   function previewTracks(){
     const count=Number(!!$('preview-landing')?.checked)+Number(!!$('preview-video')?.checked);
-    if($('preview-track-total'))$('preview-track-total').textContent=count?`${count} track${count>1?'s':''}: ₦${(5000*count).toLocaleString()} · With earned 10% XP discount: ₦${(4500*count).toLocaleString()}`:'Select one or both tracks to see tuition.';
+    const total=count===2?8000:5000*count,discounted=count===2?7200:4500*count;
+    if($('preview-track-total'))$('preview-track-total').textContent=count?`${count} track${count>1?'s':''}: ₦${total.toLocaleString()} · With earned 10% XP discount: ₦${discounted.toLocaleString()}`:'Select one or both tracks to see tuition.';
   }
   $('preview-landing')?.addEventListener('change',previewTracks);
   $('preview-video')?.addEventListener('change',previewTracks);

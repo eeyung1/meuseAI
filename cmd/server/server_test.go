@@ -363,13 +363,13 @@ func TestPilotModeEnvironmentDefaults(t *testing.T) {
 		t.Setenv(key, value)
 	}
 	config, err := ConfigFromEnv()
-	if err != nil || !config.PilotMode {
-		t.Fatal("pilot must default on", err)
-	}
-	t.Setenv("MEUSEAI_PILOT_MODE", "false")
-	config, err = ConfigFromEnv()
 	if err != nil || config.PilotMode {
-		t.Fatal("explicit paid mode ignored", err)
+		t.Fatal("paid checkout must default on", err)
+	}
+	t.Setenv("MEUSEAI_PILOT_MODE", "true")
+	config, err = ConfigFromEnv()
+	if err != nil || !config.PilotMode {
+		t.Fatal("explicit pilot mode ignored", err)
 	}
 	t.Setenv("MEUSEAI_PILOT_MODE", "typo")
 	if _, err = ConfigFromEnv(); err == nil {

@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+const (
+	Tier1SingleTrackAmountKobo int64 = 500000
+	Tier1BundleAmountKobo      int64 = 800000
+)
+
 // CanonicalTracks accepts only the two server-defined learning products.
 // A missing legacy selection defaults to the original landing-page product.
 func CanonicalTracks(tracks []string) (string, error) {
@@ -39,6 +44,24 @@ func CanonicalTracks(tracks []string) (string, error) {
 	}
 	return "landing_pages", nil
 }
+
+// Tier1TrackAmount returns the server-owned price for one track or the
+// discounted two-track bundle, followed by any earned course discount.
+func Tier1TrackAmount(tracks string, discountPercent int) (int64, error) {
+	canonical, err := CanonicalTracks(strings.Split(tracks, ","))
+	if err != nil || canonical != tracks {
+		return 0, errors.New("invalid canonical tracks")
+	}
+	amount := Tier1SingleTrackAmountKobo
+	if canonical == "landing_pages,video" {
+		amount = Tier1BundleAmountKobo
+	}
+	if discountPercent < 0 || discountPercent > 100 {
+		return 0, errors.New("invalid discount")
+	}
+	return amount - amount*int64(discountPercent)/100, nil
+}
+
 func ValidTrackAmount(amount int64, tracks string) bool {
 	if tracks == "" {
 		tracks = "landing_pages"
@@ -47,6 +70,10 @@ func ValidTrackAmount(amount int64, tracks string) bool {
 	if err != nil || canonical != tracks {
 		return false
 	}
-	count := int64(len(strings.Split(canonical, ",")))
-	return amount%count == 0 && ValidTier1Amount(amount/count)
+	full, err := Tier1TrackAmount(canonical, 0)
+	if err != nil {
+		return false
+	}
+	discounted, _ := Tier1TrackAmount(canonical, 10)
+	return amount == full || amount == discounted
 }

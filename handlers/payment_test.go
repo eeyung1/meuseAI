@@ -325,7 +325,10 @@ func TestTier1TrackPurchases(t *testing.T) {
 				if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 					t.Fatal(err)
 				}
-				amount := int64(500000 * len(tracks))
+				amount := int64(500000)
+				if len(tracks) == 2 {
+					amount = 800000
+				}
 				var stored int64
 				var selected string
 				if err := d.QueryRow("SELECT amount_kobo,tracks FROM payments WHERE reference=$1", result.Reference).Scan(&stored, &selected); err != nil || stored != amount || selected != selection {
@@ -392,9 +395,6 @@ func TestPilotInterestDoesNotChargeOrUnlock(t *testing.T) {
 		t.Run(fmt.Sprint(postgres), func(t *testing.T) {
 			d, p, mux := paymentFixture(t, postgres)
 			p.config.PilotMode = true
-			if w := paymentRequest(mux, "/api/v1/payments/checkout", `{"tier":"tier_1","tracks":["video"]}`, nil); w.Code != 503 {
-				t.Fatal("pilot checkout accepted", w.Code)
-			}
 			for i := 0; i < 2; i++ {
 				if w := paymentRequest(mux, "/api/v1/tier-1/interest", `{"tracks":["video"]}`, nil); w.Code != 200 {
 					t.Fatal(w.Code, w.Body.String())
@@ -431,6 +431,34 @@ func TestPilotInterestDoesNotChargeOrUnlock(t *testing.T) {
 				t.Fatal("latest interest missing", w.Body.String())
 			}
 		})
+	}
+}
+
+func TestLegacyPilotFlagDoesNotBlockLiveCheckout(t *testing.T) {
+	d, p, mux := paymentFixture(t, false)
+	p.config.PilotMode = true
+	w := paymentRequest(mux, "/api/v1/payments/checkout", `{"tier":"tier_1","tracks":["landing_pages","video"]}`, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("legacy pilot flag blocked checkout: %d %s", w.Code, w.Body.String())
+	}
+	var amount int64
+	if err := d.QueryRow("SELECT amount_kobo FROM payments").Scan(&amount); err != nil || amount != 800000 {
+		t.Fatalf("bundle amount=%d err=%v", amount, err)
+	}
+}
+
+func TestTier1BundleCourseDiscount(t *testing.T) {
+	d, _, mux := paymentFixture(t, false)
+	if _, err := d.Exec("UPDATE students SET xp=1000"); err != nil {
+		t.Fatal(err)
+	}
+	w := paymentRequest(mux, "/api/v1/payments/checkout", `{"tier":"tier_1","tracks":["video","landing_pages"]}`, nil)
+	if w.Code != http.StatusOK {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	var amount int64
+	if err := d.QueryRow("SELECT amount_kobo FROM payments").Scan(&amount); err != nil || amount != 720000 {
+		t.Fatalf("discounted bundle amount=%d err=%v", amount, err)
 	}
 }
 func TestPilotInterestEligibility(t *testing.T) {

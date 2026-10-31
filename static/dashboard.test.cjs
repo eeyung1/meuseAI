@@ -174,6 +174,9 @@ test('applies 10% discount to checkout button after completing the course', asyn
 
   assert.match(h.element('discount-banner-text').textContent, /10% Course Discount Unlocked/);
   assert.match(h.element('checkout-button').textContent, /4,500/);
+  h.element('track-video').checked=true;h.element('track-video').listeners.change();
+  assert.match(h.element('track-total').textContent, /7,200/);
+  assert.match(h.element('bundle-saving').textContent, /save ₦1,800/);
 });
 
 
@@ -263,7 +266,7 @@ test('every lesson offers ten distinct prompts in both modes, matched to its ski
 test('track selection totals and checkout reflect only selected tracks',async()=>{
  let payload;
  const h=harness((path,options)=>{if(path.includes('/checkout')){payload=JSON.parse(options.body);return ok({authorization_url:'https://checkout.paystack.com/selected'});}const p=profile();p.modules[4].state='available';return ok(p);});await settle();h.nodes[4].listeners.click();
- h.element('track-video').checked=true;h.element('track-video').listeners.change();assert.match(h.element('track-total').textContent,/10,000/);
+  h.element('track-video').checked=true;h.element('track-video').listeners.change();assert.match(h.element('track-total').textContent,/8,000/);assert.match(h.element('bundle-saving').textContent,/save ₦2,000/);
  await h.element('checkout-button').listeners.click();assert.equal(payload.tracks.length,2);
  h.element('track-landing').checked=false;h.element('track-landing').listeners.change();assert.match(h.element('track-total').textContent,/5,000/);
  await h.element('checkout-button').listeners.click();assert.deepEqual(payload.tracks,['video']);
@@ -407,4 +410,10 @@ test('builder has three labelled steps, native keyboard controls and touch targe
  assert.match(css,/\.builder-choice, #studio-chips \.chip-btn \{ min-height:52px/);
  assert.match(css,/\.builder-choice:focus-visible/);
  assert.match(css,/#prompt-lab-dialog \.prompt-workbench textarea \{ font-family:inherit; font-size:16px/);
+});
+
+test('checkout presents Paystack, local bank transfer and instant access trust signals',()=>{
+ const html=fs.readFileSync(__dirname+'/dashboard.html','utf8');
+ for(const text of ['Paystack secure checkout','local bank transfer','Instant access after payment confirmation','Pro Bundle'])assert.ok(html.includes(text));
+ const css=fs.readFileSync(__dirname+'/dashboard.css','utf8');assert.match(css,/\.checkout-trust/);
 });

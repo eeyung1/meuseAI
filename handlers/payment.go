@@ -80,10 +80,6 @@ func (p *Payment) Checkout(w http.ResponseWriter, r *http.Request) {
 		paymentError(w, 401, "authentication required")
 		return
 	}
-	if p.config.PilotMode {
-		paymentJSON(w, 503, map[string]string{"error": "Paid checkout is paused during the free pilot. Register track interest instead.", "code": "pilot_mode"})
-		return
-	}
 	var input struct {
 		Tier   string   `json:"tier"`
 		Tracks []string `json:"tracks"`
@@ -107,7 +103,11 @@ func (p *Payment) Checkout(w http.ResponseWriter, r *http.Request) {
 			paymentError(w, 400, "select landing_pages, video, or both without duplicates")
 			return
 		}
-		amount *= int64(len(strings.Split(tracks, ",")))
+		amount, err = services.Tier1TrackAmount(tracks, 0)
+		if err != nil {
+			paymentError(w, 400, "invalid Tier 1 selection")
+			return
+		}
 	} else if len(input.Tracks) > 0 {
 		paymentError(w, 400, "tracks apply only to Tier 1")
 		return
@@ -161,9 +161,10 @@ func (p *Payment) Checkout(w http.ResponseWriter, r *http.Request) {
 			if discountPercent > 50 {
 				discountPercent = 50
 			}
-			if discountPercent > 0 {
-				discountKobo := (amount * int64(discountPercent)) / 100
-				amount = amount - discountKobo
+			amount, err = services.Tier1TrackAmount(tracks, discountPercent)
+			if err != nil {
+				paymentError(w, 503, "checkout unavailable")
+				return
 			}
 		}
 	} else {
