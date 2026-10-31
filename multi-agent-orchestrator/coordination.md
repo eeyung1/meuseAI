@@ -71,3 +71,7 @@ meuseAI automated student journey and conversion funnel pipeline.
 - 2026-10-31T19:28:31Z — Codex-worker-20261031-20261031-0a750196: Scheduling finding after Task 7 release: Task 8 active claim protects dashboard.js/dashboard tests/curriculum. Open Tasks 9/10 overlap, and Task 11 depends on 8. No eligible independent follow-up exists; serialize these tasks against integrated prerequisite changes. Landing timing/XP/tuition copy will need an explicitly scoped follow-up when Tasks 8/11 change backend policy.
 
 - 2026-10-31T19:30:09Z — ORCHESTRATOR / explicit user authorization: Task 8 scope expanded at generation 26 to `handlers/curriculum.go,handlers/curriculum_test.go,handlers/learning_schedule_test.go,handlers/dashboard.go,engine/drip.go,engine/drip_test.go,static/dashboard.js,static/dashboard.test.cjs` so obsolete schedule tests can be updated with immediate-unlock/prerequisite coverage. Existing ownership preserved.
+
+- 2026-10-31T19:40:06Z — ORCHESTRATOR / explicit user authorization: Task 8 scope expanded at generation 28 with `test/e2e/journey_test.go` solely to align end-to-end same-session XP evidence with the momentum bonus; Task 9 remains unclaimed pending Task 8 release.
+
+- 2026-10-31T19:43:43Z — Task 8 completion/release synchronized at generation 29 under explicit user continuation authorization. Session `OpenCode-worker-20261031-8c3e68c8` COMPLETE; claim `opencode-self-paced-20261031-a83f` removed; commit `98cc58e2f59b1f267fb13e5c652d366b6bd182db` remains Planner-owned for publication/CI/merge. Task 9 ACTIVE session preserved.
