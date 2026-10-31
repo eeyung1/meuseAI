@@ -7,7 +7,7 @@
 .preset-chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
 .chip-btn{background:var(--surface);border:1px solid var(--border);color:var(--muted);font-size:10px;font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;transition:all .2s}
 .chip-btn:hover{border-color:var(--yellow);color:var(--yellow)}
-.prompt-workbench textarea{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:11px;line-height:1.4;min-height:75px;border-color:var(--border);background:var(--bg)}
+.prompt-workbench textarea{font-family:inherit;font-size:16px;line-height:1.4;min-height:75px;border-color:var(--border);background:var(--bg)}
 .studio-actions{display:grid;grid-template-columns:1.3fr 1fr;gap:8px;margin-top:10px}
 .primary-accent{background:var(--yellow);color:var(--bg);font-weight:850;font-size:11px;border:0;border-radius:8px;padding:10px 14px;cursor:pointer;box-shadow:0 0 14px rgba(255,214,10,0.25);transition:background .2s}
 .primary-accent:hover{background:#ffe54d}
@@ -104,3 +104,24 @@ body:has(#prompt-lab-dialog[open]){overflow:hidden}.prompt-lab-dialog-header{pos
 @media(max-width:680px){#prompt-lab-dialog{max-height:calc(100dvh - 12px);padding-top:12px}.prompt-lab-dialog-header{top:-12px}#studio-chips{grid-template-columns:repeat(2,minmax(0,1fr));max-height:clamp(160px,32dvh,260px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:5px 5px 9px;align-content:start}#studio-chips .chip-btn{min-height:52px;font-size:12px;line-height:1.4;padding:10px;overflow-wrap:anywhere}#prompt-lab-dialog .prompt-workbench textarea{min-height:190px;max-height:45dvh}.lab-shortcuts{background:var(--surface);padding:6px 0}#prompt-workbench,#studio-chips,#submission-form{scroll-margin-top:130px}}
 
 .gemini-launch-help summary{cursor:pointer;min-height:44px;display:list-item;padding:10px 0;color:var(--yellow);font-size:14px}.contact-link:focus-visible,.lab-shortcuts button:focus-visible{outline:3px solid var(--yellow);outline-offset:3px}
+
+/* Three-step builder: native buttons support touch, keyboard and both appearances. */
+.prompt-builder { display:grid; gap:16px; margin:20px 0; }
+.builder-step { min-width:0; margin:0; padding:16px; border:1px solid var(--border); border-radius:14px; background:var(--surface); }
+.builder-step legend { padding:0 8px; font-size:16px; font-weight:750; color:var(--text); }
+.builder-number { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; margin-right:6px; border-radius:50%; background:var(--yellow); color:var(--bg); }
+.builder-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.builder-choice, #studio-chips .chip-btn { min-height:52px; padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--elevated); color:var(--text); text-align:left; font-size:14px; line-height:1.4; overflow-wrap:anywhere; }
+.builder-choice[aria-pressed=true], #studio-chips .chip-btn[aria-pressed=true] { border-color:var(--yellow); background:var(--yellow); color:var(--bg); box-shadow:inset 0 0 0 1px var(--bg); }
+.builder-choice:focus-visible { outline:3px solid var(--yellow); outline-offset:3px; }
+#prompt-lab-dialog .prompt-workbench textarea { font-family:inherit; font-size:16px; line-height:1.65; min-height:180px; }
+#prompt-lab-dialog .mode-pill, #prompt-lab-dialog .secondary { min-height:44px; }
+#prompt-lab-dialog #studio-chips { max-height:none; overflow:visible; }
+#builder-edit-hint { line-height:1.5; }
+@media(max-width:420px) { .builder-step { padding:12px; } .builder-options { grid-template-columns:minmax(0,1fr); } #prompt-lab-dialog #studio-chips { grid-template-columns:minmax(0,1fr); } }
+
+#studio-chips .chip-btn::before { content:""; display:block; height:36px; border-radius:6px; margin-bottom:9px; background:linear-gradient(120deg,#063c32,#d8bb72); }
+#studio-chips .chip-btn:nth-child(2n)::before { background:linear-gradient(120deg,#8d3d62,#f3c695); }
+#studio-chips .chip-btn:nth-child(3n)::before { background:linear-gradient(120deg,#173661,#7bbfd1); }
+#studio-chips .chip-btn:nth-child(4n)::before { background:linear-gradient(120deg,#51416a,#d3bddf); }
+#studio-chips .chip-btn:nth-child(5n)::before { background:linear-gradient(120deg,#5a452f,#d0ba99); }

@@ -6,6 +6,7 @@
   let loading = false, refreshAgain = false, stopped = false, busy = false;
   let studioMode = 'selfie'; // 'selfie' | 'scratch'
   let activeCelebrationDay = null;
+  let builder = { vibe: 0, wardrobe: 'theme', light: 'theme' };
   const selectedTracks = new Set(['landing_pages']);
   let guideRevision = 0;
 
@@ -229,24 +230,72 @@
   }
 ];
   function themedPrompt(id, theme) {
-    const base = `Create ${theme.subject} in ${theme.scene}. Use ${theme.style}, ${theme.light}, a clear focal subject and a balanced portrait composition. Preserve natural proportions. No logos, watermarks or text.`;
-    if (id === 'day_1') return `${base} After generating this image, make a second version changing only the setting to ${theme.alternate}. Keep the subject, outfit, style and lighting unchanged. Compare the two settings.`;
-    if (id === 'day_2') return `${base} For a second generation, keep the subject, camera angle, composition and setting identical, but replace the lighting with ${theme.comparison}. Change only the light and compare the mood and shadow detail.`;
-    if (id === 'day_3') return `${base} Establish these consistent visual anchors: ${theme.anchors}. After generating the first image, attach it as a reference in Gemini and request a second image of the same subject in ${theme.alternate}. Repeat those anchors and preserve the face, clothing, colours and object geometry. Compare both images for identity and detail drift.`;
-    return `${base} If you already have a matching image, attach it in Gemini and use it as your starting image. Then make two separate follow-up edits: first, ${theme.edit}; second, soften harsh shadows while keeping the original light direction. Preserve the face, outfit, pose, proportions and these visual anchors: ${theme.anchors}. Inspect the result after each edit, then request a square crop that retains the subject.`;
+    const base = `Create a portrait of ${theme.subject} in ${theme.scene}. Use ${theme.style} and ${theme.light}. Keep natural proportions. No text or logos.`;
+    if (id === 'day_1') return `${base} Try a second version changing only the setting to ${theme.alternate}.`;
+    if (id === 'day_2') return `${base} Then try ${theme.comparison}. Change only the light and compare the mood.`;
+    if (id === 'day_3') return `${base} Keep these consistent visual anchors: ${theme.anchors}. Use the first image as a reference for the same person in ${theme.alternate}.`;
+    return `${base} Make two separate follow-up edits: ${theme.edit}; then soften the shadows. Keep the person and outfit unchanged.`;
+  }
+  const wardrobeChoices = [
+    { id: 'theme', label: '✦ Keep the original look' },
+    { id: 'suit', label: '◈ A tailored suit', subject: 'an adult in a beautifully tailored suit', anchors: 'the same tailored suit and hairstyle' },
+    { id: 'gown', label: '✧ A flowing evening gown', subject: 'an adult in a flowing evening gown', anchors: 'the same evening gown and hairstyle' },
+    { id: 'casual', label: '☀ Relaxed everyday style', subject: 'an adult in a relaxed linen shirt and trousers', anchors: 'the same linen outfit and hairstyle' }
+  ];
+  const lightChoices = [
+    { id: 'theme', label: '✦ Keep the scene’s mood' },
+    { id: 'golden', label: '☀ Golden-hour terrace', light: 'warm sunset light', scene: 'an open terrace at sunset' },
+    { id: 'studio', label: '◉ Soft studio light', light: 'soft, flattering studio light', scene: 'a simple portrait studio' },
+    { id: 'neon', label: '☾ Neon city night', light: 'pink and blue neon light', scene: 'a city street at night' }
+  ];
+  function assembledPrompt(id, vibe = builder.vibe) {
+    const theme = { ...promptThemes[vibe] };
+    const wardrobe = wardrobeChoices.find(choice => choice.id === builder.wardrobe) || wardrobeChoices[0];
+    const light = lightChoices.find(choice => choice.id === builder.light) || lightChoices[0];
+    if (wardrobe.subject) { theme.subject = wardrobe.subject; theme.anchors = wardrobe.anchors; }
+    if (light.light) { theme.light = light.light; theme.scene = light.scene; }
+    const reference = studioMode === 'selfie' ? 'Using my attached reference image, preserve the person’s recognizable face and natural skin tone. ' : '';
+    return reference + themedPrompt(id, theme);
+  }
+  function applyBuilder() {
+    if (!selected?.startsWith('day_') || !snapshot?.modules.some(module => module.id === selected && ['available','completed'].includes(module.state))) return;
+    $('gemini-prompt').value = assembledPrompt(selected);
+    if ($('studio-copied-note')) $('studio-copied-note').hidden = true;
+    updatePromptSelection(); saveDraft();
+  }
+  function renderBuilderChoices() {
+    for (const [id, key, choices] of [['builder-wardrobe', 'wardrobe', wardrobeChoices], ['builder-light', 'light', lightChoices]]) {
+      const container = $(id);
+      if (!container) continue;
+      container.replaceChildren();
+      for (const choice of choices) {
+        const button = document.createElement('button');
+        button.type = 'button'; button.className = 'builder-choice'; button.textContent = choice.label;
+        button.setAttribute('aria-pressed', String(builder[key] === choice.id));
+        button.addEventListener('click', () => { builder[key] = choice.id; applyBuilder(); });
+        container.append(button);
+      }
+    }
   }
   const recipes = Object.fromEntries(Object.keys(lessons).map(id => [id, {
-    scratch: { tag: '10 creative prompts', guide: 'Choose one of 10 prompts below. Edit the subject, outfit or setting to make it yours, then copy it into Gemini. Follow the comparison or editing steps one at a time.', presets: promptThemes.map(theme => ({ label: theme.label, text: themedPrompt(id, theme) })) },
-    selfie: { tag: '10 reference-photo prompts', guide: 'Choose a look below. Attach your own photo or a photo you have permission to use in Gemini, then paste the prompt. Preserve natural features; exact likeness is not guaranteed. Anyone can adapt any look.', presets: promptThemes.map(theme => ({ label: theme.label, text: 'Using my attached reference image, depict the person as the adult subject in the scene below. Preserve their recognizable facial features, natural skin tone and body proportions; do not reshape their face or body. Adapt the styling to the reference person. ' + themedPrompt(id, theme) })) }
+    scratch: { tag: 'Your look, three choices', guide: 'Choose a vibe, style your outfit and set the light. Copy your assembled prompt into Gemini, then try the lesson’s follow-up.', presets: promptThemes.map(theme => ({ label: theme.label })) },
+    selfie: { tag: 'Your photo, your style', guide: 'Build your look below. Attach your own photo or one you have permission to use in Gemini, then paste your prompt. Results may vary.', presets: promptThemes.map(theme => ({ label: theme.label })) }
   }]));
   function draftKey() { return 'meuseai-draft:' + (snapshot?.student_id || snapshot?.full_name || 'learner') + ':' + selected; }
   function saveDraft() {
     if (!selected || !snapshot) return;
-    try { let previous={};try{previous=JSON.parse(localStorage.getItem(draftKey())||'{}');}catch(_){} localStorage.setItem(draftKey(), JSON.stringify({...previous,prompt:$('gemini-prompt')?.value||''})); } catch (_) { /* Storage can be disabled. */ }
+    try { let previous={};try{previous=JSON.parse(localStorage.getItem(draftKey())||'{}');}catch(_){} localStorage.setItem(draftKey(), JSON.stringify({...previous,prompt:$('gemini-prompt')?.value||'',builder:{...builder},studioMode})); } catch (_) { /* Storage can be disabled. */ }
   }
   function restoreDraft() {
+    builder = { vibe: 0, wardrobe: 'theme', light: 'theme' };
+    studioMode = 'selfie';
+    if ($('gemini-prompt')) $('gemini-prompt').value = '';
     try {
-      const saved = JSON.parse(localStorage.getItem(draftKey()) || '{}');
+      const saved = JSON.parse(localStorage.getItem(draftKey()) || '{}') || {};
+      if (Number.isInteger(saved.builder?.vibe) && saved.builder.vibe >= 0 && saved.builder.vibe < promptThemes.length) builder.vibe = saved.builder.vibe;
+      if (wardrobeChoices.some(choice => choice.id === saved.builder?.wardrobe)) builder.wardrobe = saved.builder.wardrobe;
+      if (lightChoices.some(choice => choice.id === saved.builder?.light)) builder.light = saved.builder.light;
+      studioMode = saved.studioMode === 'scratch' ? 'scratch' : 'selfie';
       if ($('gemini-prompt')) $('gemini-prompt').value = typeof saved.prompt==='string'?saved.prompt:(saved.submission||'');
     } catch (_) { /* A missing or invalid draft must not block the lesson. */ }
   }
@@ -319,18 +368,24 @@
           btn.type = 'button';
           btn.className = 'chip-btn';
           btn.textContent = `${index+1}. ${preset.label}`;
-          btn.dataset.prompt=preset.text;
-          btn.setAttribute('aria-pressed',String($('gemini-prompt').value===preset.text));
+          btn.dataset.vibe=String(index);
+          btn.dataset.prompt=assembledPrompt(module.id,index);
+          btn.setAttribute('aria-pressed',String($('gemini-prompt').value===btn.dataset.prompt));
           btn.addEventListener('click', () => {
-            if ($('gemini-prompt')) $('gemini-prompt').value = preset.text; updatePromptSelection();saveDraft();
+            builder.vibe = index; applyBuilder();
           });
           chipsContainer.append(btn);
         });
         chipsContainer.scrollTop=scrollTop;
       }
       if ($('gemini-prompt') && !$('gemini-prompt').value) {
-        $('gemini-prompt').value = recipe.presets[0].text;
+        $('gemini-prompt').value = assembledPrompt(module.id);
       }
+      $('mode-selfie')?.classList.toggle('active', studioMode === 'selfie');
+      $('mode-scratch')?.classList.toggle('active', studioMode === 'scratch');
+      $('mode-selfie')?.setAttribute('aria-pressed', String(studioMode === 'selfie'));
+      $('mode-scratch')?.setAttribute('aria-pressed', String(studioMode === 'scratch'));
+      renderBuilderChoices();
       updatePromptSelection();
       studio.hidden = false;
     } else {
@@ -341,8 +396,12 @@
   function updatePromptSelection(){
     let selectedLabel='Custom prompt · ready to copy or edit';
     for(const button of Array.from($('studio-chips')?.children||[])){
+      button.dataset.prompt=assembledPrompt(selected,Number(button.dataset.vibe));
       const active=button.dataset.prompt===$('gemini-prompt')?.value;
       button.setAttribute('aria-pressed',String(active));if(active)selectedLabel='Selected: '+button.textContent;
+    }
+    for (const [id, key, choices] of [['builder-wardrobe','wardrobe',wardrobeChoices],['builder-light','light',lightChoices]]) {
+      Array.from($(id)?.children || []).forEach((button,index) => button.setAttribute('aria-pressed', String(builder[key] === choices[index].id)));
     }
     if($('selected-prompt-name'))$('selected-prompt-name').textContent=selectedLabel;
   }
@@ -557,7 +616,7 @@
       status.textContent='Select and copy the website address manually, then open it in Chrome or Safari.';
     }
   });
-  $('gemini-prompt')?.addEventListener('input',()=>{updatePromptSelection();saveDraft();});
+  $('gemini-prompt')?.addEventListener('input',()=>{if($('studio-copied-note'))$('studio-copied-note').hidden=true;updatePromptSelection();saveDraft();});
   $('btn-clear-draft')?.addEventListener('click', () => {
     if ($('gemini-prompt')) $('gemini-prompt').value = '';
     updatePromptSelection();
