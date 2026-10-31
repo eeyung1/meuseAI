@@ -300,54 +300,42 @@
     } catch (_) { /* A missing or invalid draft must not block the lesson. */ }
   }
 
+  function storyDetails(dayNum) {
+    const studentName = snapshot?.full_name || 'meuseAI learner';
+    const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : 'https://meuseai.onrender.com';
+    const referralUrl = `${origin}/share?day=${dayNum}&student=${encodeURIComponent(studentName)}`;
+    return { studentName, origin, referralUrl, dayNum, xp: Number(snapshot?.xp || 0) };
+  }
+  function drawStoryBadge(dayNum) {
+    const canvas = $('story-badge-canvas');
+    if (!canvas || typeof canvas.getContext !== 'function') return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const story = storyDetails(dayNum), width = canvas.width || 1080, height = canvas.height || 1920;
+    const gradient = ctx.createLinearGradient?.(0, 0, width, height);
+    if (gradient?.addColorStop) { gradient.addColorStop(0, '#07132d'); gradient.addColorStop(.55, '#101f48'); gradient.addColorStop(1, '#2b1f05'); ctx.fillStyle = gradient; }
+    else ctx.fillStyle = '#07132d';
+    ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = '#ffd60a'; ctx.fillRect(0, 0, width, 28); ctx.fillRect(0, height - 28, width, 28);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#ffd60a'; ctx.font = `800 ${Math.round(width * .055)}px system-ui`; ctx.fillText('meuseAI', width / 2, height * .12);
+    ctx.fillStyle = '#f8fafc'; ctx.font = `800 ${Math.round(width * .09)}px system-ui`; ctx.fillText(`DAY ${dayNum}`, width / 2, height * .29); ctx.fillText('COMPLETE', width / 2, height * .38);
+    ctx.fillStyle = '#57d9a3'; ctx.font = `800 ${Math.round(width * .052)}px system-ui`; ctx.fillText(`${story.xp.toLocaleString()} XP`, width / 2, height * .51);
+    ctx.fillStyle = '#f8fafc'; ctx.font = `700 ${Math.round(width * .046)}px system-ui`; ctx.fillText(story.studentName.slice(0, 32), width / 2, height * .64);
+    ctx.fillStyle = '#a5b2cc'; ctx.font = `500 ${Math.round(width * .028)}px system-ui`; ctx.fillText('built a new AI image skill', width / 2, height * .71);
+    ctx.fillStyle = '#ffd60a'; ctx.font = `700 ${Math.round(width * .024)}px system-ui`; ctx.fillText(story.referralUrl.slice(0, 68), width / 2, height * .86);
+    ctx.fillStyle = '#a5b2cc'; ctx.font = `500 ${Math.round(width * .022)}px system-ui`; ctx.fillText('Create yours in the free 4-day sprint', width / 2, height * .91);
+  }
   function updateSocialShare(dayNum) {
     if (!dayNum || !$('social-celebration')) return;
     activeCelebrationDay = dayNum;
-    const studentName = snapshot?.full_name || 'A builder';
-    const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : 'https://meuseai.onrender.com';
-    const shareUrl = `${origin}/share?day=${dayNum}&student=${encodeURIComponent(studentName)}`;
-    const quote = `I just finished Day ${dayNum} of the meuseAI Image Accelerator using Google Gemini! 🚀 Created a custom visual exploring lighting and prompt direction. Join the free 4-day sprint: ${origin}`;
-    const tweet = `Day ${dayNum} with @meuseAI & Google Gemini complete! 🎨 Engineered a custom visual exploring prompt direction. Start the free 4-day sprint:`;
-
-    const fbBtn = $('share-facebook-btn');
-    if (fbBtn) fbBtn.href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(quote)}`;
-
-    const twBtn = $('share-twitter-btn');
-    if (twBtn) twBtn.href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweet)}&url=${encodeURIComponent(shareUrl)}&hashtags=meuseAI,GeminiAI,AIArt`;
-
-    const liBtn = $('share-linkedin-btn');
-    if (liBtn) liBtn.href = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
-
-    const waBtn = $('share-whatsapp-btn');
-    if (waBtn) waBtn.href = `https://api.whatsapp.com/send?text=${encodeURIComponent(quote + ' ' + shareUrl)}`;
-
-    if ($('celebration-title')) $('celebration-title').textContent = `Day ${dayNum} complete · +250 XP awarded`;
-
-    // Social Share Link Status
-    const existingShare = snapshot?.social_shares?.find(s => s.day === dayNum);
-    const form = $('share-link-form');
-    const statusEl = $('share-link-status');
-    if (existingShare) {
-      if (form) form.hidden = true;
-      if (statusEl) {
-        statusEl.hidden = false;
-        if (existingShare.status === 'approved') {
-          statusEl.textContent = '✦ Verified! +250 XP bonus awarded for this share.';
-          statusEl.style.color = 'var(--green)';
-        } else if (existingShare.status === 'rejected') {
-          statusEl.textContent = 'Post review was rejected. Please make sure your post is public and resubmit.';
-          statusEl.style.color = 'var(--danger)';
-          if (form) form.hidden = false;
-        } else {
-          statusEl.textContent = '⏳ Post link submitted! Admin is reviewing it to confirm +250 XP.';
-          statusEl.style.color = 'var(--yellow)';
-        }
-      }
-    } else {
-      if (form) form.hidden = false;
-      if (statusEl) statusEl.hidden = true;
+    drawStoryBadge(dayNum);
+    if ($('celebration-title')) $('celebration-title').textContent = `Day ${dayNum} complete · your story badge is ready`;
+    const existingShare = snapshot?.social_shares?.find(s => s.day === dayNum && s.xp_awarded >= 250);
+    const status = $('story-share-status');
+    if (status) {
+      status.hidden = !existingShare;
+      status.textContent = existingShare ? '✦ +250 sharing XP already added for this day.' : '';
     }
-
     $('social-celebration').hidden = false;
   }
 
@@ -627,50 +615,44 @@
     if(!$('submission-form').hidden){$('submission-form').scrollIntoView?.({behavior:'smooth',block:'center'});$('submit-button').focus({preventScroll:true});}
   });
 
-  $('btn-copy-share')?.addEventListener('click', () => {
-    const studentName = snapshot?.full_name || 'A builder';
-    const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : 'https://meuseai.onrender.com';
-    const day = activeCelebrationDay || 1;
-    const text = `Day ${day} with @meuseAI & Google Gemini complete! 🎨 Engineered a custom visual exploring lighting and prompt direction. Check out the free 4-day sprint: ${origin}/share?day=${day}&student=${encodeURIComponent(studentName)}`;
-    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).catch(() => {});
-    }
-    const note = $('share-copied-note');
-    if (note) { note.hidden = false; setTimeout(() => { note.hidden = true; }, 4000); }
+  $('download-story-badge')?.addEventListener('click', () => {
+    const canvas = $('story-badge-canvas');
+    if (!canvas || typeof canvas.toDataURL !== 'function') return;
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = `meuseAI-day-${activeCelebrationDay || 1}-story.png`;
+    link.click();
   });
-
-  $('share-link-form')?.addEventListener('submit', async event => {
-    event.preventDefault();
-    if (busy || !snapshot) return;
-    const url = $('share-post-url')?.value.trim();
-    const day = activeCelebrationDay;
-    const statusEl = $('share-link-status');
-    const submitBtn = $('btn-submit-share-link');
-    if (!url || !day) return;
-
-    if (submitBtn) submitBtn.disabled = true;
+  async function triggerStoryShare(platform) {
+    if (busy || !snapshot || !activeCelebrationDay) return;
+    const story = storyDetails(activeCelebrationDay), status = $('story-share-status');
+    const caption = `${story.studentName} completed Day ${story.dayNum} on meuseAI and built a new AI image skill. Create yours: ${story.referralUrl}`;
+    busy = true;
     try {
-      const res = await request('/api/v1/curriculum/share-link', {
+      const result = await request('/api/v1/curriculum/share-link', {
         method: 'POST',
-        body: JSON.stringify({ day, share_url: url, platform: 'social' })
+        body: JSON.stringify({ day: story.dayNum, share_url: story.referralUrl, platform, share_triggered: true })
       });
-      if (statusEl) {
-        statusEl.textContent = '⏳ ' + (res.message || 'Link submitted for admin confirmation (+250 XP upon approval)!');
-        statusEl.style.color = 'var(--yellow)';
-        statusEl.hidden = false;
-      }
-      if ($('share-link-form')) $('share-link-form').hidden = true;
+      if (status) { status.hidden = false; status.textContent = result.reward_granted ? '✦ Shared! +250 XP added instantly.' : '✦ Your +250 sharing XP for this day is already saved.'; }
       await refresh();
-    } catch (err) {
-      if (statusEl) {
-        statusEl.textContent = 'Error: ' + err.message;
-        statusEl.style.color = 'var(--danger)';
-        statusEl.hidden = false;
+      if (platform === 'instagram') {
+        if (typeof navigator.share === 'function') await navigator.share({ title: `meuseAI Day ${story.dayNum}`, text: caption, url: story.referralUrl });
+        else {
+          await navigator.clipboard?.writeText?.(caption);
+          location.assign('https://www.instagram.com/');
+        }
+      } else if (platform === 'whatsapp') {
+        location.assign(`https://wa.me/?text=${encodeURIComponent(caption)}`);
+      } else {
+        location.assign(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(story.referralUrl)}&quote=${encodeURIComponent(caption)}`);
       }
-    } finally {
-      if (submitBtn) submitBtn.disabled = false;
-    }
-  });
+    } catch (error) {
+      if (status) { status.hidden = false; status.textContent = error.message; }
+    } finally { busy = false; }
+  }
+  $('share-whatsapp-btn')?.addEventListener('click', () => triggerStoryShare('whatsapp'));
+  $('share-instagram-btn')?.addEventListener('click', () => triggerStoryShare('instagram'));
+  $('share-facebook-btn')?.addEventListener('click', () => triggerStoryShare('facebook'));
 
   $('checkout-button').addEventListener('click', async () => {
     if (busy || !selectedTracks.size) return;

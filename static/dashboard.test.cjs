@@ -22,6 +22,12 @@ class Element {
       remove: cls => { this.className = this.className.replace(cls, '').trim(); },
       contains: cls => this.className.includes(cls)
     };
+    this.canvasText = [];
+    this.canvasContext = {
+      createLinearGradient: () => ({ addColorStop() {} }),
+      fillRect() {},
+      fillText: text => this.canvasText.push(String(text))
+    };
   }
   focus() { this.focused = true; }
   showModal() { this.open = true; }
@@ -32,6 +38,9 @@ class Element {
   setAttribute(name, value) { this.attributes[name] = value; }
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.children = children; }
+  getContext(type) { return type === '2d' ? this.canvasContext : null; }
+  toDataURL() { this.dataURLRequested = true; return 'data:image/png;base64,badge'; }
+  click() { this.clicked = true; }
 }
 function profile() {
   return { full_name: '<img src=x onerror=alert(1)>', xp: 250, streak_days: 2, rank: 1, funnel_tier: 'free_week',
@@ -44,7 +53,7 @@ function harness(handler) {
   const element = id => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id); };
   const nodes = ['day_1', 'day_2', 'day_3', 'day_4', 'tier_1'].map(id => { const e = new Element(); e.dataset.module = id; return e; });
   const storage = new Map();
-  const context = { navigator: { clipboard: { writeText: async () => {} } }, localStorage: { getItem:k=>storage.get(k), setItem:(k,v)=>storage.set(k,v), removeItem:k=>storage.delete(k) }, document: { getElementById: element, querySelectorAll: () => nodes, createElement: () => new Element(), addEventListener() {}, hidden: false },
+  const context = { navigator: { clipboard: { writeText: async () => {} }, share: async value => { context.shared = value; } }, localStorage: { getItem:k=>storage.get(k), setItem:(k,v)=>storage.set(k,v), removeItem:k=>storage.delete(k) }, document: { getElementById: element, querySelectorAll: () => nodes, createElement: () => new Element(), addEventListener() {}, hidden: false },
     window: { addEventListener(type, fn) { windows[type] = fn; } }, URL, location: { assign(value) { context.destination = value; } },
     fetch: async (path, options) => { calls.push({ path, options }); return handler(path, options); },
     EventSource: class { constructor(path) { this.path = path; this.listeners = {}; streams.push(this); } addEventListener(type, fn) { this.listeners[type] = fn; } close() { this.closed = true; } },
@@ -118,36 +127,38 @@ test('studio switches between selfie and scratch modes and populates preset prom
   assert.match(h.element('gemini-prompt').value, /reference image|recognizable/i);
 });
 
-test('submitting social share link posts to /api/v1/curriculum/share-link', async () => {
-  let submittedPayload = null;
+test('story badge renders, downloads and grants instant sharing XP once', async () => {
+  let submittedPayload = null, shared = false;
   const h = harness((path, options) => {
     if (path === '/api/v1/curriculum/share-link') {
       submittedPayload = JSON.parse(options.body);
-      return ok({ status: 'pending', message: 'Submitted for verification' });
+      shared = true;
+      return ok({ status: 'approved', reward_granted: true, xp_awarded: 250 });
     }
     const data = profile();
+    if (shared) { data.xp = 500; data.social_shares = [{ day: 1, status: 'approved', xp_awarded: 250 }]; }
     return ok(data);
   });
   await settle();
-
-  // Complete day 2 to trigger celebration
-  h.element('gemini-prompt').value = 'Test prompt';
-  await h.element('submission-form').listeners.submit({ preventDefault() {} });
-  await settle();
-
+  h.nodes[0].listeners.click();
   assert.equal(h.element('social-celebration').hidden, false);
-
-  // Submit social share link
-  h.element('share-post-url').value = 'https://www.facebook.com/student/posts/12345';
-  await h.element('share-link-form').listeners.submit({ preventDefault() {} });
-  await settle();
-
+  assert.match(h.element('story-badge-canvas').canvasText.join(' '), /DAY 1.*250 XP.*<img src=x/);
+  h.element('download-story-badge').listeners.click();
+  assert.equal(h.element('story-badge-canvas').dataURLRequested, true);
+  await h.element('share-whatsapp-btn').listeners.click(); await settle();
   assert.deepEqual(submittedPayload, {
-    day: 2,
-    share_url: 'https://www.facebook.com/student/posts/12345',
-    platform: 'social'
+    day: 1,
+    share_url: 'https://meuseai.onrender.com/share?day=1&student=%3Cimg%20src%3Dx%20onerror%3Dalert(1)%3E',
+    platform: 'whatsapp',
+    share_triggered: true
   });
-  assert.match(h.element('share-link-status').textContent, /Submitted for verification/);
+  assert.match(h.context.destination, /^https:\/\/wa\.me\/\?text=/);
+  assert.match(h.element('story-share-status').textContent, /250 sharing XP|250 XP/);
+  assert.equal(h.element('xp').textContent, '500');
+  await h.element('share-instagram-btn').listeners.click(); await settle();
+  assert.match(h.context.shared.url, /\/share\?day=1/);
+  await h.element('share-facebook-btn').listeners.click(); await settle();
+  assert.match(h.context.destination, /^https:\/\/www\.facebook\.com\/sharer/);
 });
 
 test('applies 10% discount to checkout button after completing the course', async () => {

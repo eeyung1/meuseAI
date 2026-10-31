@@ -283,10 +283,11 @@ func (h *Curriculum) ShareLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
-		StudentID string `json:"student_id"`
-		Day       int    `json:"day"`
-		ShareURL  string `json:"share_url"`
-		Platform  string `json:"platform"`
+		StudentID      string `json:"student_id"`
+		Day            int    `json:"day"`
+		ShareURL       string `json:"share_url"`
+		Platform       string `json:"platform"`
+		ShareTriggered bool   `json:"share_triggered"`
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 4096)
 	decoder := json.NewDecoder(r.Body)
@@ -321,6 +322,13 @@ func (h *Curriculum) ShareLink(w http.ResponseWriter, r *http.Request) {
 	if platform == "" {
 		platform = "social"
 	}
+	if input.ShareTriggered {
+		allowed := map[string]bool{"facebook": true, "instagram": true, "whatsapp": true}
+		if !allowed[platform] {
+			curriculumError(w, http.StatusBadRequest, "supported share platform required")
+			return
+		}
+	}
 
 	tx, err := h.database.BeginTx(r.Context(), nil)
 	if err != nil {
@@ -334,6 +342,58 @@ func (h *Curriculum) ShareLink(w http.ResponseWriter, r *http.Request) {
 	err = tx.QueryRowContext(r.Context(), "SELECT completed FROM student_progress WHERE student_id=$1 AND day_number=$2", studentID, input.Day).Scan(&completed)
 	if err != nil || !completed {
 		curriculumError(w, http.StatusForbidden, "exercise must be completed before submitting social share for bonus XP")
+		return
+	}
+
+	if input.ShareTriggered {
+		now := h.now().UTC()
+		result, insertErr := tx.ExecContext(r.Context(), `INSERT INTO social_shares
+			(student_id,day_number,share_url,platform,status,xp_awarded,created_at,reviewed_at)
+			VALUES ($1,$2,$3,$4,'approved',250,$5,$5)
+			ON CONFLICT(student_id,day_number) DO NOTHING`, studentID, input.Day, shareURL, platform, now)
+		if insertErr != nil {
+			curriculumError(w, http.StatusServiceUnavailable, "share reward unavailable")
+			return
+		}
+		awarded, rowsErr := result.RowsAffected()
+		if rowsErr != nil {
+			curriculumError(w, http.StatusServiceUnavailable, "share reward unavailable")
+			return
+		}
+		if awarded == 0 {
+			result, err = tx.ExecContext(r.Context(), `UPDATE social_shares
+				SET share_url=$1,platform=$2,status='approved',xp_awarded=250,reviewed_at=$3
+				WHERE student_id=$4 AND day_number=$5 AND xp_awarded=0`, shareURL, platform, now, studentID, input.Day)
+			if err != nil {
+				curriculumError(w, http.StatusServiceUnavailable, "share reward unavailable")
+				return
+			}
+			awarded, rowsErr = result.RowsAffected()
+			if rowsErr != nil {
+				curriculumError(w, http.StatusServiceUnavailable, "share reward unavailable")
+				return
+			}
+		}
+		if awarded == 1 {
+			if _, err = tx.ExecContext(r.Context(), "UPDATE students SET xp=xp+250,updated_at=$1 WHERE id=$2", now, studentID); err != nil {
+				curriculumError(w, http.StatusServiceUnavailable, "share reward unavailable")
+				return
+			}
+			details, _ := json.Marshal(map[string]any{"day": input.Day, "platform": platform, "xp_awarded": 250})
+			if _, err = tx.ExecContext(r.Context(), "INSERT INTO activity_logs (student_id,event_type,details) VALUES ($1,'social_share_rewarded',$2)", studentID, string(details)); err != nil {
+				curriculumError(w, http.StatusServiceUnavailable, "share reward unavailable")
+				return
+			}
+		}
+		if err = tx.Commit(); err != nil {
+			curriculumError(w, http.StatusServiceUnavailable, "share reward unavailable")
+			return
+		}
+		curriculumJSON(w, http.StatusOK, map[string]any{
+			"status": "approved", "day": input.Day, "platform": platform,
+			"xp_awarded": 250, "reward_granted": awarded == 1,
+			"message": "Story share recorded. +250 XP is now on your account.",
+		})
 		return
 	}
 
