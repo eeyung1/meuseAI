@@ -153,3 +153,44 @@ func TestSocialShareAwards250Once(t *testing.T) {
 		})
 	}
 }
+
+func TestShareTriggerAwards250InstantlyAndOnce(t *testing.T) {
+	for _, postgres := range []bool{false, true} {
+		t.Run(fmt.Sprint(postgres), func(t *testing.T) {
+			database, _, mux := curriculumFixture(t, postgres)
+			curriculumStudent(t, database, "story-share", true, "day_2", "engaged", time.Now())
+			if _, err := database.Exec("INSERT INTO student_progress(student_id,day_number,completed) VALUES('story-share',1,TRUE)"); err != nil {
+				t.Fatal(err)
+			}
+			share := func(platform string) *httptest.ResponseRecorder {
+				body := fmt.Sprintf(`{"student_id":"story-share","day":1,"share_url":"https://example.com/share/day-1","platform":%q,"share_triggered":true}`, platform)
+				req := httptest.NewRequest(http.MethodPost, "/api/v1/curriculum/share-link", strings.NewReader(body))
+				w := httptest.NewRecorder()
+				mux.ServeHTTP(w, req)
+				return w
+			}
+			if w := share("email"); w.Code != http.StatusBadRequest {
+				t.Fatalf("unsupported platform accepted: %d", w.Code)
+			}
+			for _, platform := range []string{"whatsapp", "facebook", "instagram"} {
+				if w := share(platform); w.Code != http.StatusOK {
+					t.Fatalf("%s share failed: %d %s", platform, w.Code, w.Body.String())
+				}
+			}
+			var xp, awarded, rewards int
+			var status string
+			if err := database.QueryRow("SELECT xp FROM students WHERE id='story-share'").Scan(&xp); err != nil {
+				t.Fatal(err)
+			}
+			if err := database.QueryRow("SELECT status,xp_awarded FROM social_shares WHERE student_id='story-share' AND day_number=1").Scan(&status, &awarded); err != nil {
+				t.Fatal(err)
+			}
+			if err := database.QueryRow("SELECT COUNT(*) FROM activity_logs WHERE student_id='story-share' AND event_type='social_share_rewarded'").Scan(&rewards); err != nil {
+				t.Fatal(err)
+			}
+			if xp != 250 || status != "approved" || awarded != 250 || rewards != 1 {
+				t.Fatalf("xp=%d status=%s awarded=%d rewards=%d", xp, status, awarded, rewards)
+			}
+		})
+	}
+}
