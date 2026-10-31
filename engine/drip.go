@@ -142,16 +142,16 @@ func (d *Drip) evaluateStudent(ctx context.Context, studentID string, now time.T
 		return Evaluation{}, nil
 	}
 
-	var started time.Time
-	var explicitStart sql.NullTime
-	if err = tx.QueryRowContext(ctx, "SELECT curriculum_started_at,consent_timestamp FROM students WHERE id=$1", studentID).Scan(&explicitStart, &started); err != nil {
-		return Evaluation{}, err
-	}
-	if explicitStart.Valid {
-		started = explicitStart.Time
-	}
-	if now.Before(started.Add(time.Duration(day-1) * 24 * time.Hour)) {
-		return Evaluation{}, nil
+	if day > 1 {
+		var previousCompleted bool
+		err = tx.QueryRowContext(ctx, `SELECT completed FROM student_progress
+			WHERE student_id=$1 AND day_number=$2`, studentID, day-1).Scan(&previousCompleted)
+		if errors.Is(err, sql.ErrNoRows) || !previousCompleted {
+			return Evaluation{}, nil
+		}
+		if err != nil {
+			return Evaluation{}, fmt.Errorf("read day %d prerequisite: %w", day, err)
+		}
 	}
 	var completed bool
 	var lastNudge, deliveredAt sql.NullTime

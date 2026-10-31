@@ -53,14 +53,13 @@ func (d *Dashboard) Page(w http.ResponseWriter, r *http.Request) {
 }
 
 type DashboardModule struct {
-	ID           string    `json:"id"`
-	Title        string    `json:"title"`
-	Description  string    `json:"description"`
-	State        string    `json:"state"`
-	XP           int       `json:"xp"`
-	Prerequisite string    `json:"prerequisite"`
-	UnlocksAt    time.Time `json:"unlocks_at"`
-	Submission   string    `json:"submission,omitempty"`
+	ID           string `json:"id"`
+	Title        string `json:"title"`
+	Description  string `json:"description"`
+	State        string `json:"state"`
+	XP           int    `json:"xp"`
+	Prerequisite string `json:"prerequisite"`
+	Submission   string `json:"submission,omitempty"`
 }
 type DashboardPeer struct {
 	Label string `json:"label"`
@@ -193,14 +192,6 @@ func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot,
 		sRows.Close()
 	}
 
-	var started time.Time
-	var explicitStart sql.NullTime
-	if err := tx.QueryRowContext(ctx, "SELECT curriculum_started_at,consent_timestamp FROM students WHERE id=$1", id).Scan(&explicitStart, &started); err != nil {
-		return result, err
-	}
-	if explicitStart.Valid {
-		started = explicitStart.Time
-	}
 	var submissions [4]string
 	var completed [4]bool
 	rows, err := tx.QueryContext(ctx, "SELECT day_number,completed,COALESCE(submission_payload,'') FROM student_progress WHERE student_id=$1", id)
@@ -235,15 +226,12 @@ func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot,
 			state = "completed"
 		} else if active && previous && result.Stage == fmt.Sprintf("day_%d", i+1) {
 			state = "available"
-			if time.Now().UTC().Before(started.Add(time.Duration(i) * 24 * time.Hour)) {
-				state = "scheduled"
-			}
 		}
 		prerequisite := "Verify your email"
 		if i > 0 {
 			prerequisite = fmt.Sprintf("Complete Day %d", i)
 		}
-		result.Modules = append(result.Modules, DashboardModule{ID: fmt.Sprintf("day_%d", i+1), Title: titles[i], Description: descriptions[i], State: state, XP: 250, Prerequisite: prerequisite, UnlocksAt: started.Add(time.Duration(i) * 24 * time.Hour), Submission: submissions[i]})
+		result.Modules = append(result.Modules, DashboardModule{ID: fmt.Sprintf("day_%d", i+1), Title: titles[i], Description: descriptions[i], State: state, XP: 250, Prerequisite: prerequisite, Submission: submissions[i]})
 		previous = previous && completed[i]
 	}
 	tierState := "locked"

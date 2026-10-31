@@ -10,36 +10,27 @@ import (
 	"time"
 )
 
-func TestLessonTimeGateBoundary(t *testing.T) {
+func TestLessonProgressionIsSelfPaced(t *testing.T) {
 	for _, postgres := range []bool{false, true} {
 		t.Run(fmt.Sprint(postgres), func(t *testing.T) {
 			database, h, mux := curriculumFixture(t, postgres)
 			start := time.Date(2026, 10, 29, 10, 0, 0, 0, time.UTC)
 			now := start
 			h.now = func() time.Time { return now }
-			curriculumStudent(t, database, "scheduled", true, "day_1", "pending", start)
-			if w := curriculumRequest(mux, "scheduled", 1, "first prompt and reflection"); w.Code != 200 {
+			curriculumStudent(t, database, "self-paced", true, "day_1", "pending", start)
+			if w := curriculumRequest(mux, "self-paced", 1, "first prompt and reflection"); w.Code != 200 {
 				t.Fatal(w.Body.String())
 			}
-			now = start.Add(24*time.Hour - time.Nanosecond)
-			if w := curriculumRequest(mux, "scheduled", 2, "too early"); w.Code != 403 {
-				t.Fatalf("early completion accepted: %d %s", w.Code, w.Body.String())
+			if w := curriculumRequest(mux, "self-paced", 2, "second prompt and reflection"); w.Code != 200 {
+				t.Fatalf("immediate next lesson unavailable: %d %s", w.Code, w.Body.String())
 			}
 			var xp int
-			_ = database.QueryRow("SELECT xp FROM students WHERE id='scheduled'").Scan(&xp)
-			if xp != 250 {
-				t.Fatal("early attempt changed XP")
+			_ = database.QueryRow("SELECT xp FROM students WHERE id='self-paced'").Scan(&xp)
+			if xp != 550 {
+				t.Fatalf("same-day momentum XP=%d", xp)
 			}
-			now = start.Add(24 * time.Hour)
-			if w := curriculumRequest(mux, "scheduled", 2, "second prompt and reflection"); w.Code != 200 {
-				t.Fatal(w.Body.String())
-			}
-			// Metadata updates cannot reset the course clock.
-			if _, err := database.Exec("UPDATE students SET updated_at=$1 WHERE id='scheduled'", now.Add(12*time.Hour)); err != nil {
-				t.Fatal(err)
-			}
-			now = start.Add(48 * time.Hour)
-			if w := curriculumRequest(mux, "scheduled", 3, "third prompt and reflection"); w.Code != 200 {
+			now = start.Add(10 * time.Minute)
+			if w := curriculumRequest(mux, "self-paced", 3, "third prompt and reflection"); w.Code != 200 {
 				t.Fatal(w.Body.String())
 			}
 		})

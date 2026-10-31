@@ -16,6 +16,7 @@ import (
 
 const (
 	curriculumXPAward       = 250
+	momentumBonusXPAward    = 50
 	maxCurriculumSubmission = 8000
 )
 
@@ -192,19 +193,6 @@ func (h *Curriculum) Complete(w http.ResponseWriter, r *http.Request) {
 
 	now := h.now().UTC()
 	completed := false
-	var started time.Time
-	var explicitStart sql.NullTime
-	if err = tx.QueryRowContext(r.Context(), "SELECT curriculum_started_at,consent_timestamp FROM students WHERE id=$1", studentID).Scan(&explicitStart, &started); err != nil {
-		curriculumError(w, 503, "course schedule unavailable")
-		return
-	}
-	if explicitStart.Valid {
-		started = explicitStart.Time
-	}
-	if now.Before(started.Add(time.Duration(input.Day-1) * 24 * time.Hour)) {
-		curriculumJSON(w, 403, map[string]any{"error": "lesson is scheduled for later", "unlocks_at": started.Add(time.Duration(input.Day-1) * 24 * time.Hour)})
-		return
-	}
 	var completedAt sql.NullTime
 	err = tx.QueryRowContext(r.Context(), "SELECT completed,completed_at FROM student_progress WHERE student_id=$1 AND day_number=$2", studentID, input.Day).Scan(&completed, &completedAt)
 	progressExists := err == nil
@@ -218,6 +206,7 @@ func (h *Curriculum) Complete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newStreak := 1
+	momentumBonus := 0
 	if streak > 0 {
 		newStreak = streak
 	}
@@ -233,6 +222,7 @@ func (h *Curriculum) Complete(w http.ResponseWriter, r *http.Request) {
 		case 24 * time.Hour:
 			newStreak++
 		case 0:
+			momentumBonus = momentumBonusXPAward
 		default:
 			newStreak = 1
 		}
@@ -257,8 +247,9 @@ func (h *Curriculum) Complete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nextStage := nextCurriculumStage(input.Day)
+	totalXPAward := curriculumXPAward + momentumBonus
 	result, err := tx.ExecContext(r.Context(), `UPDATE students SET current_stage=$1,engagement_status='engaged',
-		xp=xp+$2,streak_days=$3,updated_at=$4 WHERE id=$5 AND current_stage=$6`, nextStage, curriculumXPAward, newStreak, now, studentID, stage)
+		xp=xp+$2,streak_days=$3,updated_at=$4 WHERE id=$5 AND current_stage=$6`, nextStage, totalXPAward, newStreak, now, studentID, stage)
 	if err != nil {
 		curriculumError(w, http.StatusServiceUnavailable, "completion unavailable")
 		return
@@ -267,7 +258,10 @@ func (h *Curriculum) Complete(w http.ResponseWriter, r *http.Request) {
 		curriculumError(w, http.StatusConflict, "student stage changed")
 		return
 	}
-	details, _ := json.Marshal(map[string]any{"day": input.Day, "next_stage": nextStage, "xp_awarded": curriculumXPAward})
+	details, _ := json.Marshal(map[string]any{
+		"day": input.Day, "next_stage": nextStage, "base_xp_awarded": curriculumXPAward,
+		"momentum_bonus_xp": momentumBonus, "xp_awarded": totalXPAward,
+	})
 	if _, err = tx.ExecContext(r.Context(), "INSERT INTO activity_logs (student_id,event_type,details) VALUES ($1,'complete_day',$2)", studentID, string(details)); err != nil {
 		curriculumError(w, http.StatusServiceUnavailable, "completion unavailable")
 		return
@@ -278,7 +272,7 @@ func (h *Curriculum) Complete(w http.ResponseWriter, r *http.Request) {
 	}
 	curriculumJSON(w, http.StatusOK, map[string]any{
 		"student_id": studentID, "completed_day": input.Day, "current_stage": nextStage,
-		"xp": xp + curriculumXPAward, "xp_awarded": curriculumXPAward, "streak_days": newStreak,
+		"xp": xp + totalXPAward, "xp_awarded": totalXPAward, "momentum_bonus_xp": momentumBonus, "streak_days": newStreak,
 	})
 }
 

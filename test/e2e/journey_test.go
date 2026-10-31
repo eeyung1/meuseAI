@@ -160,7 +160,7 @@ func TestStudentJourney(t *testing.T) {
 			if err := json.Unmarshal(w.Body.Bytes(), &profile); err != nil {
 				t.Fatal(err)
 			}
-			if profile.XP != 1000 || profile.Stage != "conversion_gate" {
+			if profile.XP != 1150 || profile.Stage != "conversion_gate" {
 				t.Fatal("completion-gated journey did not reach conversion")
 			}
 			w = perform(f.app, "POST", "/api/v1/payments/checkout", `{"tier":"tier_1"}`, cookie, nil)

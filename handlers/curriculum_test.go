@@ -87,15 +87,20 @@ func TestCurriculumJourney(t *testing.T) {
 					Stage      string `json:"current_stage"`
 					XP         int    `json:"xp"`
 					Award      int    `json:"xp_awarded"`
+					Momentum   int    `json:"momentum_bonus_xp"`
 					StreakDays int    `json:"streak_days"`
 				}
 				if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 					t.Fatal(err)
 				}
-				if body.Stage != expectedStages[day-1] || body.XP != day*curriculumXPAward || body.Award != curriculumXPAward || body.StreakDays != day {
+				expectedMomentum := 0
+				if day > 1 {
+					expectedMomentum = momentumBonusXPAward
+				}
+				expectedXP := day*curriculumXPAward + (day-1)*momentumBonusXPAward
+				if body.Stage != expectedStages[day-1] || body.XP != expectedXP || body.Award != curriculumXPAward+expectedMomentum || body.Momentum != expectedMomentum || body.StreakDays != 1 {
 					t.Fatalf("day %d response: %+v", day, body)
 				}
-				now = now.Add(24 * time.Hour)
 			}
 			var stage, engagement string
 			var xp, streak, progress, events int
@@ -108,10 +113,36 @@ func TestCurriculumJourney(t *testing.T) {
 			if err := database.QueryRow("SELECT COUNT(*) FROM activity_logs WHERE event_type='complete_day'").Scan(&events); err != nil {
 				t.Fatal(err)
 			}
-			if stage != "conversion_gate" || engagement != "engaged" || xp != 1000 || streak != 4 || progress != 4 || events != 4 {
+			if stage != "conversion_gate" || engagement != "engaged" || xp != 1150 || streak != 1 || progress != 4 || events != 4 {
 				t.Fatalf("final state: stage=%s engagement=%s xp=%d streak=%d progress=%d events=%d", stage, engagement, xp, streak, progress, events)
 			}
 		})
+	}
+}
+
+func TestCurriculumMomentumBonusRequiresSameUTCDay(t *testing.T) {
+	database, handler, mux := curriculumFixture(t, false)
+	now := time.Date(2026, 10, 28, 23, 55, 0, 0, time.UTC)
+	handler.now = func() time.Time { return now }
+	curriculumStudent(t, database, "ada", true, "day_1", "pending", now)
+	if response := curriculumRequest(mux, "ada", 1, "first prompt"); response.Code != http.StatusOK {
+		t.Fatal(response.Body.String())
+	}
+	now = now.Add(10 * time.Minute)
+	response := curriculumRequest(mux, "ada", 2, "next-day prompt")
+	if response.Code != http.StatusOK {
+		t.Fatal(response.Body.String())
+	}
+	var body struct {
+		XP       int `json:"xp"`
+		Award    int `json:"xp_awarded"`
+		Momentum int `json:"momentum_bonus_xp"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.XP != 500 || body.Award != curriculumXPAward || body.Momentum != 0 {
+		t.Fatalf("cross-day completion received momentum bonus: %+v", body)
 	}
 }
 
