@@ -65,18 +65,6 @@
       $('join')?.scrollIntoView({ behavior: 'smooth' });
     });
 
-    function revealSection(hash) {
-      if (!hash || hash === '#') return;
-      let target;
-      try { target = $(decodeURIComponent(hash.slice(1))); } catch (_) { return; }
-      let details = target?.closest?.('details');
-      while (details) { details.open = true; details = details.parentElement?.closest?.('details'); }
-    }
-    for (const link of document.querySelectorAll?.('a[href^="#"]') || []) {
-      link.addEventListener('click', () => revealSection(link.getAttribute('href')));
-    }
-    window.addEventListener?.('hashchange', () => revealSection(window.location.hash));
-    revealSection(window.location.hash);
     const params = new URLSearchParams(window.location.search);
     if (params.get('tab') === 'login' || window.location.pathname === '/login') {
       selectTab('login', false);

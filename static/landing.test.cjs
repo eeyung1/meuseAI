@@ -195,3 +195,36 @@ test('landing initialization leaves the phone keyboard closed until the learner 
  h.element('tab-login').listeners.click();
  assert.equal(h.element('login-email').focused,true);
 });
+
+test('public course narrative and lookbook stay visible without JavaScript', () => {
+  const html = fs.readFileSync(__dirname + '/landing.html', 'utf8');
+  assert.doesNotMatch(html, /<details\b|<summary\b/i);
+  for (const id of ['lookbook', 'join', 'how-it-works', 'curriculum', 'journey', 'faq', 'contact']) {
+    assert.match(html, new RegExp(`id="${id}"`));
+  }
+  assert.equal((html.match(/class="lookbook-card"/g) || []).length, 4);
+  assert.equal((html.match(/role="img" aria-label="AI-generated [^"]+"/g) || []).length, 4);
+  assert.match(html, /AI-generated inspiration, not student submissions/);
+  assert.match(html, /Paid enrollment is currently paused/);
+  assert.match(html, /at least 24 hours later/);
+  assert.match(html, /href="#join">Join the free course/);
+  const css = fs.readFileSync(__dirname + '/landing.css', 'utf8');
+  assert.equal((css.match(/data:image\/webp;base64,/g) || []).length, 1);
+  assert.doesNotMatch(css, /url\(["']?https?:/);
+});
+
+test('track preview handles none, one and both without starting payment', () => {
+  const h = harness(() => { throw new Error('Preview must not make a network request'); });
+  const landing = h.element('preview-landing');
+  const video = h.element('preview-video');
+  assert.match(h.element('preview-track-total').textContent, /Select one or both/);
+  landing.checked = true;
+  landing.listeners.change();
+  assert.match(h.element('preview-track-total').textContent, /1 track: ₦5,000/);
+  assert.match(h.element('preview-track-total').textContent, /₦4,500/);
+  video.checked = true;
+  video.listeners.change();
+  assert.match(h.element('preview-track-total').textContent, /2 tracks: ₦10,000/);
+  assert.match(h.element('preview-track-total').textContent, /₦9,000/);
+  assert.equal(h.calls.length, 0);
+});
