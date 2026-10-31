@@ -89,7 +89,7 @@ func TestDashboardSnapshotAndPrivacy(t *testing.T) {
 		t.Run(fmt.Sprintf("postgres=%v", postgres), func(t *testing.T) {
 			_, _, mux := dashboardFixture(t, postgres)
 			result := dashboardRead(t, mux)
-			if result.Name != "Ada Learner" || result.XP != 250 || result.Streak != 2 || result.Rank != 2 {
+			if result.Name != "Ada Learner" || result.XP != 250 || result.Streak != 2 || result.Rank != 2 || result.Tier1PriceNaira != 5000 || result.Tier1BundleNaira != 8000 {
 				t.Fatalf("wrong profile %+v", result)
 			}
 			if len(result.Modules) != 5 || result.Modules[0].State != "completed" || result.Modules[1].State != "available" || result.Modules[2].State != "locked" || result.Modules[4].State != "locked" {

@@ -97,6 +97,7 @@ type DashboardSnapshot struct {
 	Rank             int                 `json:"rank"`
 	DiscountPercent  int                 `json:"discount_percent"`
 	Tier1PriceNaira  int                 `json:"tier_1_price_naira"`
+	Tier1BundleNaira int                 `json:"tier_1_bundle_price_naira"`
 	SocialShares     []DashboardShare    `json:"social_shares"`
 	Modules          []DashboardModule   `json:"modules"`
 	Leaderboard      []DashboardPeer     `json:"leaderboard"`
@@ -248,8 +249,10 @@ func (d *Dashboard) snapshot(ctx context.Context, id string) (DashboardSnapshot,
 	result.DiscountPercent = discountPercent
 	baseNaira := 5000
 	result.Tier1PriceNaira = baseNaira - (baseNaira * discountPercent / 100)
+	bundleNaira := 8000
+	result.Tier1BundleNaira = bundleNaira - (bundleNaira * discountPercent / 100)
 
-	tierDesc := fmt.Sprintf("Choose Lovable landing pages or AI video generation with CapCut. Each track is ₦%d; both are ₦%d. Base price: ₦5,000 per track. External tool costs are separate.", result.Tier1PriceNaira, result.Tier1PriceNaira*2)
+	tierDesc := fmt.Sprintf("Choose Lovable landing pages or AI video generation with CapCut for ₦%d each, or get both in the Pro Bundle for ₦%d. Secure Paystack checkout and instant access after confirmation.", result.Tier1PriceNaira, result.Tier1BundleNaira)
 	if d.pilotMode {
 		tierDesc = "Free pilot: register your interest in Lovable landing pages, AI video with CapCut, or both. No payment is collected and no paid track unlocks. Planned tuition is shown for feedback."
 	}

@@ -1,11 +1,11 @@
 # meuseAI: Complete Student Journey & Automation Blueprint (v2)
 
-> **Validation pilot (2026-10-30):** Paid enrollment is paused by default (`MEUSEAI_PILOT_MODE=true`). The four-day course stays free on the existing Render hostname. Learners can register non-binding Tier 1 track interest after Day 4; planned prices below are not a current checkout offer. Admin can review interest. Upgrade backend reliability and verify live payments before enabling checkout. See `cmd/server/README.md` for the pilot checklist.
+> **Live checkout policy (2026-10-31):** The free course now leads to live Paystack checkout by default. `MEUSEAI_PILOT_MODE=true` remains an explicit interest-only override. Production must provide verified Paystack credentials and retain webhook signature verification; see `cmd/server/README.md`.
 
-> **Current Tier 1 policy (2026-10-29):** Learners choose Lovable landing pages, AI video generation with CapCut, or both. Each track costs ₦5,000; both cost ₦10,000. The earned 10% XP discount makes these ₦4,500/₦9,000. Only purchased tracks unlock, and the other track can be bought later. External subscriptions/AI credits are separate. This supersedes the original single-track Tier 1 descriptions below; see `cmd/server/README.md` for the implemented API, entitlement and migration details.
+> **Current Tier 1 policy (2026-10-31):** Lovable landing pages and CapCut AI video cost ₦5,000 each; the Pro Bundle costs ₦8,000. The earned 10% XP discount produces ₦4,500/₦7,200 prices. Only purchased tracks unlock. External subscriptions and AI credits are separate.
 
 
-**Implemented pacing policy:** Verification starts the course clock. Day 1 is immediate. Days 2, 3 and 4 require prior completion and open at 24, 48 and 72 hours respectively. Later profile edits do not reset this clock. The server, dashboard and email dispatcher enforce this policy. Completing a lesson early does not unlock the next lesson early. Late completion does not impose a new 24-hour delay. Completed lessons remain available for practice. Inactivity-paused students can explicitly resume; unsubscribed students are not silently resubscribed.
+**Implemented pacing policy:** Day 1 opens after verification. Days 2–4 require the previous completion and then open immediately. The server, dashboard and email dispatcher enforce the sequential prerequisite without a wall-clock delay. Same-UTC-day continuation earns +50 momentum XP; completed lessons remain available. Inactivity-paused students can explicitly resume, while unsubscribed students are not silently resubscribed.
 
 Changes from v1 are marked inline as **[CHANGED]** or **[NEW]**, with a
 one-line reason, so you can see exactly what moved and why before you

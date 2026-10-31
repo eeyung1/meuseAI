@@ -79,7 +79,7 @@ are unavailable; no production listen/signal smoke test is claimed.
 
 Migration 3 adds `curriculum_started_at` and `student_progress.delivered_at`. Verification sets the explicit course clock. Existing verified users without an explicit clock retain their consent timestamp as the fallback, so migration does not reset their progress. PostgreSQL and SQLite use append-only migrations; do not edit applied schemas.
 
-Lessons release at verification + 0/24/48/72 hours and still require previous completion. The completion API rejects early access with 403 and `unlocks_at`; the dashboard uses `scheduled` and a local release date. Drip delivery cannot bypass the gate. Inactivity reminders use the persisted delivery time instead of unrelated profile changes. Authenticated `POST /api/v1/curriculum/resume` reopens a paused lesson's reminder window without granting XP or overriding unsubscribe.
+Day 1 opens after verification. Days 2–4 require the previous completion and then open immediately; completion, dashboard and drip delivery all enforce this prerequisite. Completing the next lesson on the same UTC date adds +50 momentum XP. Inactivity reminders use persisted delivery time. Authenticated `POST /api/v1/curriculum/resume` reopens a paused lesson's reminder window without granting XP or overriding unsubscribe.
 
 The Prompt Lab teaches short, sequential experiments, uses gender-neutral optional photo references, and provides separate Copy and Open Gemini actions. Clipboard failure offers manual selection. The single editable prompt draft is stored per student/module in localStorage, with legacy draft fields preserved; do not enter sensitive information on shared devices. Submitted work is returned only in the authenticated student's own module snapshot. No image upload, automated quality grading, or Gemini API integration is claimed.
 
@@ -87,7 +87,7 @@ Tier 1 uses a shared 1,000-XP/10% policy. Checkout stores its agreed amount; web
 
 ## Student creation and sharing flow
 
-The Gemini Prompt Lab button above Today's Learning opens the prompt tools and lesson completion form. Students copy a prompt, open external Gemini, paste it and generate their image there. No photo uploads or curated image gallery are provided by meuseAI. After completing the lesson, students post their own creation publicly with #meuseAI and submit its link for admin review. New approved shares award 250 bonus XP once per lesson; lesson completion separately awards 250 XP. Existing awards are retained unchanged.
+The Gemini Prompt Lab button above Today's Learning opens the prompt tools and lesson completion form. Students copy a prompt, open external Gemini, paste it and generate their image there. No photo uploads or curated image gallery are provided by meuseAI. After completion, an in-browser 9:16 Canvas card includes the learner name, day, XP and referral link. It downloads as PNG and offers WhatsApp, Instagram-native share and Facebook actions. The first trigger per completed day awards 250 bonus XP transactionally; repeat triggers are idempotent. Historical reviewed-share data and admin routes remain compatible.
 
 The landing page explains this sequence. A walkthrough video can be added when the recording is available. Historical migration 4 and its stored data remain in place for database compatibility, but image upload, preview, publication and public image routes are removed.
 
@@ -95,7 +95,7 @@ Each of the four Prompt Lab lessons offers ten themed prompts in both creative a
 
 ## Tier 1 track selection
 
-Tier 1 offers `landing_pages` (Lovable) and `video` (CapCut). Tuition is ₦5,000 per track or ₦10,000 for both. The existing 1,000-XP/10% discount applies per track: ₦4,500 or ₦9,000. External tool plans, AI credits, hosting upgrades and premium assets are not included. CapCut feature/credit availability depends on account and region; the landing page asks learners to check access before buying.
+Tier 1 offers `landing_pages` (Lovable) and `video` (CapCut). Tuition is ₦5,000 per track or ₦8,000 for the Pro Bundle. The 1,000-base-XP/10% discount produces ₦4,500 or ₦7,200 checkout prices. External tool plans, AI credits, hosting upgrades and premium assets are not included. CapCut feature/credit availability depends on account and region.
 
 After the free sprint, dashboard checkboxes calculate the total and checkout posts `{ "tier":"tier_1", "tracks":["video"] }` (or both IDs). Server validation rejects unknown/duplicate/owned selections and computes price. Omitted selections preserve legacy Lovable-only checkout compatibility. Payment records store immutable canonical track selections and amounts. Signed Paystack confirmation grants only those entitlements, is idempotent, and allows a later purchase of the other track. Tier 2 status is preserved during additions.
 
@@ -105,18 +105,18 @@ Tool selection reviewed 2026-10-29: https://www.capcut.com/tools/ai-video ; http
 
 Mobile navigation: Open Gemini is a native HTTPS link to Google's documented web entry point `https://gemini.google.com/`, opening a separate tab. A visible same-tab link and copyable website address provide alternatives for phone browser/app handoffs that return to meuseAI. Both navigation links save local drafts synchronously and leave browser navigation intact. The website cannot guarantee that the installed Gemini app opens; users can open it directly and paste their prompt. Copying the website address replaces clipboard contents, so the UI reminds users to recopy their prompt. Mobile profile/banner grids span the available width, modal controls stack, touch targets are at least 44px and text fields use 16px text.
 
-## Free validation pilot
+## Live checkout and launch safeguards
 
-Production defaults to `MEUSEAI_PILOT_MODE=true`. This keeps the current Render Free service and `meuseai.onrender.com` hostname. The Blueprint explicitly enables the pilot and disables mail dry-run (`MEUSEAI_DRY_RUN=false`); Brevo/Resend credentials and a verified sender remain necessary for actual delivery.
+Production and the Render Blueprint default to `MEUSEAI_PILOT_MODE=false`. Eligible learners initiate server-priced Paystack checkout; signed webhooks must match the stored owner, currency, tracks and exact single/bundle price before entitlements unlock. `MEUSEAI_DRY_RUN=false`, working email credentials and verified sender/Paystack configuration remain deployment requirements.
 
-In pilot mode, new checkout requests for any tier return 503 before creating a payment or calling Paystack. Signed webhooks for previously created payments still work, and existing purchased entitlements are retained. After completing Day 4, verified subscribed learners can POST `tracks` to `/api/v1/tier-1/interest`. Selection validation is shared with checkout. Repeated identical selections are idempotent; changing selections creates a new `tier1_interest` activity event. No payment, entitlement or XP is created. The admin portal reads the latest selection per learner through authenticated `GET /api/v1/admin/tier-1-interest` (up to 500 entries). These are non-binding expressions of interest, not purchase reservations or revenue.
+The legacy pilot flag remains available only as an explicit interest-only dashboard experience. The checkout API itself no longer returns a pilot 503, so already eligible sessions and publication transitions are not stranded by stale configuration. The interest endpoint remains durable and admin-readable for controlled research, but creates no payment, entitlement or XP.
 
-Before turning pilot mode off: check remaining free workspace hours in Render Billing, move the backend to paid compute, verify email delivery, verify live Paystack configuration and a controlled transaction, then update launch copy and set `MEUSEAI_PILOT_MODE=false`. Keep `MEUSEAI_DRY_RUN=false`. The Go process runs reminder/provisioning loops, so free-service sleeping or suspension can delay scheduled emails; the free pilot does not provide guaranteed delivery timing. No keep-alive traffic is added to defeat free-tier sleeping.
+Before deploying: verify remaining Render capacity, email delivery, live Paystack credentials, webhook routing/signatures and one controlled single-track and bundle transaction. Keep `MEUSEAI_DRY_RUN=false`. The Go process runs reminder/provisioning loops, so free-service sleeping can delay email or provisioning; no keep-alive traffic is added to defeat free-tier sleeping.
 
-Pilot readiness:
+Launch readiness:
 - [x] Free hosting and current hostname retained.
 - [x] Blueprint sends real email rather than defaulting to dry-run.
-- [x] Server blocks new charges during pilot.
+- [x] Server prices singles/bundles and validates exact webhook amounts.
 - [x] Learner interest is durable and visible to admin.
 - [ ] Successful signup and inbox delivery checked on a pilot account.
 - [ ] Remaining workspace free hours checked in Render Billing before invitations.
@@ -127,7 +127,7 @@ Pilot readiness:
 
 Landing page and dashboard contact sections link to `https://wa.me/2348128162561` with a prefilled meuseAI help message, and `mailto:eyungemmanuel@gmail.com`. WhatsApp opens a message composer; nothing is sent automatically.
 
-The Prompt Lab launch button opens the modal at its beginning without automatically bringing up the phone keyboard. All ten themes appear as numbered choices in a bounded two-column mobile grid with scrolling, selected-state feedback and shortcuts to themes or the prompt. One editable prompt textarea is reused for completion; the separate submission and reflection textareas are removed. Choosing a theme is enough to populate the prompt. Completion still requires the learner to press Save prompt & complete lesson after practising in Gemini, and the server remains authoritative for XP/time gates. The sharing URL form remains separate for verified sharing XP. Existing submitted work is retained, and legacy local drafts can restore their submission into the single prompt field if no prompt draft exists.
+The Prompt Lab launch button opens the modal at its beginning without automatically bringing up the phone keyboard. All ten themes appear as numbered choices in a bounded two-column mobile grid with scrolling, selected-state feedback and shortcuts to themes or the prompt. One editable prompt textarea is reused for completion. Completion still requires Save prompt & complete lesson, and the server remains authoritative for XP/prerequisites. The story badge replaces the public-URL submission form; existing submitted work and legacy local drafts remain compatible.
 
 ## Appearance preferences
 
@@ -137,14 +137,14 @@ All public pages, the dashboard, verification, sharing and admin expose an Appea
 
 - [x] Light-orange default retained; dark mode uses neutral charcoal surfaces with restrained gold accents.
 - [x] Neutral cards, badges and share buttons reduce competing colours; errors and completion retain meaningful status colours.
-- [x] Beginner-focused landing copy describes the four daily skills and the 24-hour unlock rule. Signup precedes the detailed walkthrough.
+- [x] Beginner-focused landing copy describes the four self-paced sequential skills. Signup precedes the detailed walkthrough.
 - [x] Prompt Lab shows Choose → Copy & create → Return & save, with an accessible copy status. Native Gemini navigation and one editable lesson prompt are preserved.
 - [x] Dashboard footer links to the course overview and existing support contacts; no unverified social profiles are published.
 - [ ] Add official Instagram, Facebook and X profile URLs when supplied.
 - [ ] Add the owner's course walkthrough video when supplied (the bank clip is only a colour reference).
 - [ ] Confirm the revised flow on a learner's phone after deployment.
 
-Embedded generation, cross-model execution, new academy subjects and hosting migration are outside this feedback batch. Free pilot and payment restrictions remain in force.
+Embedded generation, cross-model execution, new academy subjects and hosting migration remain outside this feedback batch. Tier 1 live checkout is enabled with server-owned prices and signed webhook enforcement.
 
 ### Mobile navigation and shorter entry page
 

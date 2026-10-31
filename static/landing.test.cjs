@@ -182,9 +182,9 @@ test('resend verification trigger posts to /api/v1/students/resend-verification'
   assert.match(feedback.textContent, /fresh verification link/i);
 });
 
-test('landing page explains additive track pricing and previews both selections',()=>{
+test('landing page explains bundle pricing and previews both selections',()=>{
  const h=harness(()=>({ok:true,status:200,json:async()=>({})}));
- h.element('preview-landing').checked=true;h.element('preview-video').checked=true;h.element('preview-video').listeners.change();assert.match(h.element('preview-track-total').textContent,/10,000.*9,000/);
+ h.element('preview-landing').checked=true;h.element('preview-video').checked=true;h.element('preview-video').listeners.change();assert.match(h.element('preview-track-total').textContent,/8,000.*7,200/);
  h.element('preview-landing').checked=false;h.element('preview-landing').listeners.change();assert.match(h.element('preview-track-total').textContent,/5,000.*4,500/);
  const html=fs.readFileSync(__dirname+'/landing.html','utf8');assert.match(html,/only the tracks you purchase unlock/i);assert.match(html,/credits.*separate/);
 });
@@ -205,8 +205,9 @@ test('public course narrative and lookbook stay visible without JavaScript', () 
   assert.equal((html.match(/class="lookbook-card"/g) || []).length, 4);
   assert.equal((html.match(/role="img" aria-label="AI-generated [^"]+"/g) || []).length, 4);
   assert.match(html, /AI-generated inspiration, not student submissions/);
-  assert.match(html, /Paid enrollment is currently paused/);
-  assert.match(html, /at least 24 hours later/);
+  assert.doesNotMatch(html, /Paid enrollment is currently paused|at least 24 hours later/);
+  assert.match(html, /next one opens immediately/);
+  assert.match(html, /Pay securely with Paystack/);
   assert.match(html, /href="#join">Join the free course/);
   const css = fs.readFileSync(__dirname + '/landing.css', 'utf8');
   assert.equal((css.match(/data:image\/webp;base64,/g) || []).length, 1);
@@ -224,7 +225,7 @@ test('track preview handles none, one and both without starting payment', () => 
   assert.match(h.element('preview-track-total').textContent, /₦4,500/);
   video.checked = true;
   video.listeners.change();
-  assert.match(h.element('preview-track-total').textContent, /2 tracks: ₦10,000/);
-  assert.match(h.element('preview-track-total').textContent, /₦9,000/);
+  assert.match(h.element('preview-track-total').textContent, /2 tracks: ₦8,000/);
+  assert.match(h.element('preview-track-total').textContent, /₦7,200/);
   assert.equal(h.calls.length, 0);
 });

@@ -434,6 +434,7 @@
     const visible = module.id === 'tier_1' && ['available','unlocked'].includes(module.state);
     $('tier1-options').hidden = !visible;
     const price = snapshot.tier_1_price_naira || 5000;
+    const bundlePrice = snapshot.tier_1_bundle_price_naira || Math.round(8000 * (100 - (snapshot.discount_percent || 0)) / 100);
     const owned = {landing_pages: !!snapshot.tier1_landing, video: !!snapshot.tier1_video};
     for (const [track, input, label] of [['landing_pages','track-landing','track-landing-price'],['video','track-video','track-video-price']]) {
       if (owned[track]) selectedTracks.delete(track);
@@ -443,14 +444,17 @@
     }
     const count = selectedTracks.size;
     const discount = snapshot.discount_percent ? ` (${snapshot.discount_percent}% XP Discount!)` : '';
-    $('track-total').textContent = count ? `${count} learning track${count===1?'':'s'} · Total ₦${(price*count).toLocaleString()}${discount}` : 'Select an unowned track to see your total.';
-    $('checkout-button').textContent = `Unlock ${count || 1} Tier 1 track${count>1?'s':''} · ₦${(price*count).toLocaleString()}${discount}`;
+    const total = count === 2 ? bundlePrice : price * count;
+    const bundleSaving = Math.max(0, price * 2 - bundlePrice);
+    $('bundle-saving').textContent = `Pro Bundle: both tracks for ₦${bundlePrice.toLocaleString()} · save ₦${bundleSaving.toLocaleString()}${discount}`;
+    $('track-total').textContent = count ? `${count} learning track${count===1?'':'s'} · Total ₦${total.toLocaleString()}${discount}` : 'Select an unowned track to see your total.';
+    $('checkout-button').textContent = `Unlock ${count || 1} Tier 1 track${count>1?'s':''} · ₦${total.toLocaleString()}${discount}`;
     $('checkout-button').hidden = !visible || (owned.landing_pages && owned.video);
     $('checkout-button').disabled = !count || busy || stopped;
     if(snapshot.pilot_mode){
       $('checkout-button').textContent='Register interest · No payment';
-      $('track-total').textContent=count?`Planned tuition: ₦${(price*count).toLocaleString()} for ${count} track${count>1?'s':''}${discount}. No charge during this pilot.`:'Select one or both tracks to register interest.';
-      $('tier1-purchase-note').textContent='Free pilot: register non-binding interest after the sprint. No payment is collected, no place is reserved and paid tracks do not unlock. Planned tuition is ₦5,000 per track or ₦10,000 for both before any earned XP discount. External tool costs are separate.';
+      $('track-total').textContent=count?`Planned tuition: ₦${total.toLocaleString()} for ${count} track${count>1?'s':''}${discount}. No charge during this pilot.`:'Select one or both tracks to register interest.';
+      $('tier1-purchase-note').textContent='Free pilot: register non-binding interest after the sprint. No payment is collected, no place is reserved and paid tracks do not unlock. Planned tuition is ₦5,000 per track or ₦8,000 for both before any earned XP discount. External tool costs are separate.';
       const interested=snapshot.interested_tracks||[];
       if(interested.length){$('tier1-interest-status').hidden=false;$('tier1-interest-status').textContent='Saved interest: '+interested.map(t=>t==='video'?'CapCut AI video':'Lovable landing pages').join(' + ')+'. You can update your selection. No payment taken.';}
     }else{

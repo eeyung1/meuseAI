@@ -16,7 +16,7 @@ services:
       - key: MEUSEAI_DRY_RUN
         value: "false"
       - key: MEUSEAI_PILOT_MODE
-        value: "true"
+        value: "false"
       - key: PAYSTACK_SECRET_KEY
         sync: false
       - key: RESEND_API_KEY
