@@ -25,7 +25,7 @@
     el.textContent = message;
   }
 
-  function selectTab(tab) {
+  function selectTab(tab, focusInput = true) {
     const signupBtn = $('tab-signup');
     const loginBtn = $('tab-login');
     const signupPanel = $('panel-signup');
@@ -41,7 +41,7 @@
       if (signupPanel) signupPanel.hidden = true;
       if (loginPanel) loginPanel.hidden = false;
       const loginEmail = $('login-email');
-      if (loginEmail) loginEmail.focus();
+      if (loginEmail && focusInput) loginEmail.focus();
     } else {
       loginBtn?.classList.remove('active');
       loginBtn?.setAttribute('aria-selected', 'false');
@@ -51,7 +51,7 @@
       if (loginPanel) loginPanel.hidden = true;
       if (signupPanel) signupPanel.hidden = false;
       const signupName = $('signup-name');
-      if (signupName) signupName.focus();
+      if (signupName && focusInput) signupName.focus();
     }
   }
 
@@ -65,11 +65,23 @@
       $('join')?.scrollIntoView({ behavior: 'smooth' });
     });
 
+    function revealSection(hash) {
+      if (!hash || hash === '#') return;
+      let target;
+      try { target = $(decodeURIComponent(hash.slice(1))); } catch (_) { return; }
+      let details = target?.closest?.('details');
+      while (details) { details.open = true; details = details.parentElement?.closest?.('details'); }
+    }
+    for (const link of document.querySelectorAll?.('a[href^="#"]') || []) {
+      link.addEventListener('click', () => revealSection(link.getAttribute('href')));
+    }
+    window.addEventListener?.('hashchange', () => revealSection(window.location.hash));
+    revealSection(window.location.hash);
     const params = new URLSearchParams(window.location.search);
     if (params.get('tab') === 'login' || window.location.pathname === '/login') {
-      selectTab('login');
+      selectTab('login', false);
     } else {
-      selectTab('signup');
+      selectTab('signup', false);
     }
   }
 

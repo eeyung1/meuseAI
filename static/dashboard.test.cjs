@@ -307,3 +307,29 @@ test('landing and dashboard expose exact WhatsApp and email contacts',()=>{
 test('legacy draft text restores into the single prompt without discarding old notes',async()=>{
  const h=harness(()=>ok(profile()));await settle();const key='meuseai-draft:'+profile().full_name+':day_1';h.context.localStorage.setItem(key,JSON.stringify({submission:'My legacy exercise',reflection:'My earlier observations'}));h.nodes[0].listeners.click();assert.equal(h.element('gemini-prompt').value,'My legacy exercise');h.element('gemini-prompt').value='Updated prompt';h.element('gemini-prompt').listeners.input();const saved=JSON.parse(h.context.localStorage.getItem(key));assert.equal(saved.prompt,'Updated prompt');assert.equal(saved.reflection,'My earlier observations');
 });
+
+test('quick start opens the available lesson from a locked selection and returns focus',async()=>{
+ const h=harness(()=>ok(profile()));await settle();
+ h.nodes[3].listeners.click();
+ assert.equal(h.element('open-prompt-lab').disabled,true);
+ assert.equal(h.element('quick-start-lab').disabled,false);
+ h.element('quick-start-lab').listeners.click({currentTarget:h.element('quick-start-lab')});
+ assert.equal(h.element('module-title').textContent,'Module 2');
+ assert.equal(h.element('prompt-lab-dialog').open,true);
+ h.element('close-prompt-lab').listeners.click();
+ assert.equal(h.element('quick-start-lab').focused,true);
+ assert.equal(h.element('quick-start-lab').attributes['aria-expanded'],'false');
+});
+test('quick start offers completed practice while waiting but never opens a locked day',async()=>{
+ const p=profile();p.modules[1].state='scheduled';p.modules[1].unlocks_at='2099-01-01T00:00:00Z';
+ const h=harness(()=>ok(p));await settle();
+ assert.match(h.element('quick-start-lab').textContent,/Practise again/);
+ h.element('quick-start-lab').listeners.click();
+ assert.equal(h.element('module-title').textContent,'Module 1');
+ assert.equal(h.element('submission-form').hidden,true);
+ const locked=profile();locked.modules.forEach(m=>m.state='locked');
+ const blocked=harness(()=>ok(locked));await settle();
+ assert.equal(blocked.element('quick-start-lab').disabled,true);
+ blocked.element('quick-start-lab').listeners.click();
+ assert.equal(blocked.element('prompt-lab-dialog').hidden,true);
+});

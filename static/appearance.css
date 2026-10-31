@@ -89,3 +89,36 @@ footer .footer-links a{display:inline-flex;align-items:center;min-height:44px;te
  header .admin-layout-1{display:block;white-space:normal}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important;animation:none!important}}
+
+/* Mobile-first course entry: one obvious action, supporting detail on demand. */
+.landing-disclosure{max-width:960px;margin:16px auto;border:1px solid var(--border);border-radius:14px;background:var(--surface)}
+.landing-disclosure>summary{padding:20px 24px;cursor:pointer;font-size:17px;font-weight:700;min-height:60px}
+.landing-disclosure>summary span{display:block;margin:4px 0 0 18px;font-size:13px;font-weight:400;color:var(--muted)}
+.landing-disclosure[open]>summary{border-bottom:1px solid var(--border)}
+.landing-disclosure :is(.curriculum-section,.upsell-preview,.faq-section){padding:28px 20px}
+.landing-disclosure .creation-walkthrough{margin:20px auto}
+.quick-start{padding:24px;border:1px solid var(--border);border-radius:16px;background:var(--surface);margin-bottom:24px}
+.quick-start h1{font-size:26px;line-height:1.25;margin:0 0 8px}
+.quick-start p{font-size:14px;color:var(--muted)}
+.quick-start .primary{font-size:16px;min-height:52px;margin-top:18px}
+.quick-progress{display:block;text-align:center;font-size:13px;text-decoration:underline;padding:10px}
+#lesson-content>summary,.lab-help>summary{cursor:pointer;min-height:44px;padding:10px 0;font-size:14px;font-weight:650}
+#course-progress{scroll-margin-top:16px}
+@media(max-width:680px){
+ .hero{padding:20px 16px 24px}
+ .hero-title{font-size:34px;line-height:1.12;margin-top:16px}
+ .hero-subtitle{font-size:15px;margin-bottom:20px}
+ .hero .action-card{margin-top:20px;padding:16px}
+ .landing-disclosure{margin:12px 16px}
+ .landing-disclosure>summary{padding:16px;font-size:16px}
+ .landing-disclosure .tier-comparison{grid-template-columns:minmax(0,1fr)}
+ .quick-start{padding:18px;margin-bottom:20px}
+ .quick-start h1{font-size:24px}
+ .quick-start .eyebrow{margin-bottom:6px}
+ .welcome{display:none}
+ .learning-grid{display:flex;flex-direction:column;gap:20px}
+ .learning-grid>.inspector{order:0;width:100%}
+ .learning-grid>.wheel-card{order:1;width:100%}
+ #open-prompt-lab{font-size:15px;min-height:48px}
+ #prompt-lab-dialog .lab-workflow{margin:8px 0}
+}
