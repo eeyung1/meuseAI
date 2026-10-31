@@ -32,7 +32,28 @@
     } catch (error) { notice(error.message); connection(stopped ? 'Sign in required' : 'Reconnecting'); }
     finally { loading = false; if (refreshAgain) { refreshAgain = false; scheduleRefresh(); } }
   }
+  function practiceModule() {
+    const days = snapshot?.modules.filter(module => module.id.startsWith('day_')) || [];
+    return days.find(module => module.state === 'available') || days.slice().reverse().find(module => module.state === 'completed');
+  }
+  function renderQuickStart() {
+    const module = practiceModule();
+    const button = $('quick-start-lab');
+    if (!button) return;
+    button.disabled = !module || busy || stopped;
+    button.textContent = module?.state === 'completed' ? 'Practise again · Gemini Prompt Lab →' : 'Start creating · Gemini Prompt Lab →';
+    $('quick-start-title').textContent = module ? (module.state === 'completed' ? 'Keep your creativity going.' : 'Your next creation starts here.') : 'Your course is getting ready.';
+    const next = snapshot?.modules.find(item => item.state === 'scheduled');
+    $('quick-start-status').textContent = module ? (module.state === 'completed' ? `${module.title} · practise while you wait${next ? ' for your next lesson' : ''}.` : `${module.title} · choose a theme and try a prompt.`) : 'Verify your email or check the lesson status below to continue.';
+  }
+  $('quick-start-lab')?.addEventListener('click', event => {
+    const module = practiceModule();
+    if (!module || busy || stopped) return;
+    if (selected !== module.id) { saveDraft(); selected = module.id; restoreDraft(); render(); }
+    openPractice(event || {currentTarget:$('quick-start-lab')});
+  });
   function render() {
+    renderQuickStart();
     if ($('resume-course')) $('resume-course').hidden = snapshot.engagement_status !== 'lapsed' || snapshot.unsubscribed;
     $('student-name').textContent = snapshot.full_name;
     $('greeting').textContent = `Welcome back, ${snapshot.full_name.split(' ')[0] || 'learner'}.`;
@@ -328,14 +349,17 @@
   }
   $('lab-show-themes')?.addEventListener('click',()=>$('studio-chips')?.scrollIntoView?.({behavior:'smooth',block:'start'}));
   $('lab-show-prompt')?.addEventListener('click',()=>$('prompt-workbench')?.scrollIntoView?.({behavior:'smooth',block:'start'}));
-  function openPractice() {
+  let practiceOpener = null;
+  function openPractice(event) {
     const module = snapshot?.modules.find(item => item.id === selected);
     if (!module || !['available', 'completed'].includes(module.state) || !module.id.startsWith('day_')) return;
     const dialog = $('prompt-lab-dialog');
     if (!dialog) return;
+    practiceOpener = event?.currentTarget || $('open-prompt-lab');
     dialog.hidden = false;
     if (typeof dialog.showModal === 'function' && !dialog.open) dialog.showModal();
     $('open-prompt-lab')?.setAttribute('aria-expanded', 'true');
+    $('quick-start-lab')?.setAttribute('aria-expanded', 'true');
     $('prompt-lab-dialog-title')?.focus({preventScroll:true});
     dialog.scrollTop=0;
   }
@@ -346,7 +370,8 @@
     if (typeof dialog.close === 'function' && dialog.open) dialog.close();
     dialog.hidden = true;
     $('open-prompt-lab')?.setAttribute('aria-expanded', 'false');
-    if (wasOpen) $('open-prompt-lab')?.focus();
+    $('quick-start-lab')?.setAttribute('aria-expanded', 'false');
+    if (wasOpen) practiceOpener?.focus();
   }
   if ($('prompt-lab-dialog')) $('prompt-lab-dialog').hidden = true;
   $('open-prompt-lab')?.addEventListener('click', openPractice);
@@ -355,7 +380,8 @@
   $('prompt-lab-dialog')?.addEventListener('close', () => {
     $('prompt-lab-dialog').hidden = true;
     $('open-prompt-lab')?.setAttribute('aria-expanded', 'false');
-    $('open-prompt-lab')?.focus();
+    $('quick-start-lab')?.setAttribute('aria-expanded', 'false');
+    practiceOpener?.focus();
   });
 
   function renderTrackOptions(module) {

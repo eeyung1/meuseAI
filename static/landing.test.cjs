@@ -188,3 +188,10 @@ test('landing page explains additive track pricing and previews both selections'
  h.element('preview-landing').checked=false;h.element('preview-landing').listeners.change();assert.match(h.element('preview-track-total').textContent,/5,000.*4,500/);
  const html=fs.readFileSync(__dirname+'/landing.html','utf8');assert.match(html,/only the tracks you purchase unlock/i);assert.match(html,/credits.*separate/);
 });
+
+test('landing initialization leaves the phone keyboard closed until the learner chooses a field',()=>{
+ const h=harness(()=>({ok:true,status:200,json:async()=>({})}));
+ assert.notEqual(h.element('signup-name').focused,true);
+ h.element('tab-login').listeners.click();
+ assert.equal(h.element('login-email').focused,true);
+});

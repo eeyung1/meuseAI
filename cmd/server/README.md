@@ -145,3 +145,12 @@ All public pages, the dashboard, verification, sharing and admin expose an Appea
 - [ ] Confirm the revised flow on a learner's phone after deployment.
 
 Embedded generation, cross-model execution, new academy subjects and hosting migration are outside this feedback batch. Free pilot and payment restrictions remain in force.
+
+### Mobile navigation and shorter entry page
+
+- [x] Landing page leads with a short explanation and signup. Curriculum, future-track pricing and FAQs expand on demand; in-page links reveal their containing section.
+- [x] Initial page loading does not focus a text field or summon the phone keyboard. Explicit tab changes still focus the appropriate field.
+- [x] Dashboard starts with a direct Gemini Prompt Lab action. It chooses the available free-course day, or the latest completed day for practice while waiting; locked days stay locked.
+- [x] On phones, lesson controls appear before the circular progress card. Lesson reading and Prompt Lab instructions expand on demand.
+- [x] Closing the lab restores focus to the button used to open it; drafts and native Gemini links remain supported.
+- [ ] Confirm the shorter landing page and direct lesson entry on a learner's phone after deployment.
