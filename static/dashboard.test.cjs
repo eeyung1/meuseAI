@@ -74,11 +74,11 @@ test('renders server state safely, selects locked modules and reconnects', async
 test('submits selected day and applies XP only after confirmed snapshot', async () => {
   let saved = false; const h = harness((path, options) => {
     if (path === '/api/v1/curriculum/complete') { assert.deepEqual(JSON.parse(options.body), { day: 2, submission: 'My image prompt' }); saved = true; return ok({}); }
-    const data = profile(); if (saved) { data.xp = 500; data.modules[1].state = 'completed'; data.modules[2].state = 'available'; } return ok(data);
+    const data = profile(); if (saved) { data.xp = 550; data.modules[1].state = 'completed'; data.modules[2].state = 'available'; } return ok(data);
   }); await settle(); h.element('gemini-prompt').value = ' My image prompt ';
   const promise = h.element('submission-form').listeners.submit({ preventDefault() {} });
   assert.equal(h.element('xp').textContent, '250'); await promise; await settle();
-  assert.equal(h.element('xp').textContent, '500'); assert.equal(h.element('module-title').textContent, 'Module 3');
+  assert.equal(h.element('xp').textContent, '550'); assert.equal(h.element('module-title').textContent, 'Module 3');
 });
 
 test('failed submissions retain prompt and do not invent progress', async () => {
@@ -183,11 +183,11 @@ test('applies 10% discount to checkout button after completing the course', asyn
  h.nodes[1].listeners.click();
  assert.equal(h.element('gemini-prompt').value, 'My own saved prompt');
  });
- test('scheduled lesson has a release time and cannot be submitted', async () => {
- const h = harness(() => { const p = profile(); p.modules[1].state='scheduled';p.modules[1].unlocks_at=new Date(Date.now()+3600000).toISOString(); return ok(p); }); await settle();
- assert.equal(h.element('submission-form').hidden, true);
- assert.match(h.element('module-help').textContent, /opens/);
- assert.equal(h.element('gemini-studio').hidden, true);
+ test('available next lesson advertises the same-day momentum bonus', async () => {
+  const h = harness(() => ok(profile())); await settle();
+  assert.equal(h.element('submission-form').hidden, false);
+  assert.match(h.element('module-help').textContent, /Available now.*\+50 bonus XP/);
+  assert.equal(h.element('gemini-studio').hidden, false);
  });
 
 
@@ -320,13 +320,13 @@ test('quick start opens the available lesson from a locked selection and returns
  assert.equal(h.element('quick-start-lab').focused,true);
  assert.equal(h.element('quick-start-lab').attributes['aria-expanded'],'false');
 });
-test('quick start offers completed practice while waiting but never opens a locked day',async()=>{
- const p=profile();p.modules[1].state='scheduled';p.modules[1].unlocks_at='2099-01-01T00:00:00Z';
- const h=harness(()=>ok(p));await settle();
- assert.match(h.element('quick-start-lab').textContent,/Practise again/);
- h.element('quick-start-lab').listeners.click();
- assert.equal(h.element('module-title').textContent,'Module 1');
- assert.equal(h.element('submission-form').hidden,true);
+test('quick start revisits completed practice only when no lesson is available',async()=>{
+  const p=profile();p.modules[1].state='locked';
+  const h=harness(()=>ok(p));await settle();
+  assert.match(h.element('quick-start-lab').textContent,/Practise again/);
+  h.element('quick-start-lab').listeners.click();
+  assert.equal(h.element('module-title').textContent,'Module 1');
+  assert.equal(h.element('submission-form').hidden,true);
  const locked=profile();locked.modules.forEach(m=>m.state='locked');
  const blocked=harness(()=>ok(locked));await settle();
  assert.equal(blocked.element('quick-start-lab').disabled,true);

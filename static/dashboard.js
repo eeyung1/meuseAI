@@ -9,7 +9,7 @@
   const selectedTracks = new Set(['landing_pages']);
   let guideRevision = 0;
 
-  const labels = { available: 'Available now', completed: 'Completed', locked: 'Complete previous lesson', scheduled: 'Opens later', unlocked: 'Unlocked' };
+  const labels = { available: 'Available now', completed: 'Completed', locked: 'Complete previous lesson', unlocked: 'Unlocked' };
   function notice(message) { $('notice').hidden = !message; $('notice').textContent = message || ''; }
   function connection(text, live = false) { $('connection').textContent = text; $('connection').parentElement.classList.toggle('live', live); }
   async function request(path, options = {}) {
@@ -43,8 +43,7 @@
     button.disabled = !module || busy || stopped;
     button.textContent = module?.state === 'completed' ? 'Practise again · Gemini Prompt Lab →' : 'Start creating · Gemini Prompt Lab →';
     $('quick-start-title').textContent = module ? (module.state === 'completed' ? 'Keep your creativity going.' : 'Your next creation starts here.') : 'Your course is getting ready.';
-    const next = snapshot?.modules.find(item => item.state === 'scheduled');
-    $('quick-start-status').textContent = module ? (module.state === 'completed' ? `${module.title} · practise while you wait${next ? ' for your next lesson' : ''}.` : `${module.title} · choose a theme and try a prompt.`) : 'Verify your email or check the lesson status below to continue.';
+    $('quick-start-status').textContent = module ? (module.state === 'completed' ? `${module.title} · revisit a prompt whenever you want.` : `${module.title} · choose a theme and try a prompt.`) : 'Verify your email or complete the previous lesson to continue.';
   }
   $('quick-start-lab')?.addEventListener('click', event => {
     const module = practiceModule();
@@ -85,7 +84,7 @@
     }
 
 
-    if (!selected) { selected = snapshot.modules.find(module => ['available','scheduled'].includes(module.state))?.id || snapshot.modules[0]?.id; restoreDraft(); }
+    if (!selected) { selected = snapshot.modules.find(module => module.state === 'available')?.id || snapshot.modules[0]?.id; restoreDraft(); }
     document.querySelectorAll('[data-module]').forEach(button => {
       const module = snapshot.modules.find(item => item.id === button.dataset.module);
       button.className = `node node-${snapshot.modules.indexOf(module) + 1} ${module?.state || 'locked'}`;
@@ -450,7 +449,8 @@
     $('submission-form').hidden = !module.id.startsWith('day_') || module.state !== 'available';
     $('btn-use-prompt').hidden=$('submission-form').hidden;
     renderTrackOptions(module);
-    $('module-help').textContent = module.state === 'locked' ? module.prerequisite : module.state === 'completed' ? 'Well done. Your progress has been saved.' : module.state === 'unlocked' ? 'Your Tier 1 access is active.' : 'Take your time. Your progress will be saved when the server confirms it.';
+    const dayNumber = module.id.startsWith('day_') ? Number(module.id.slice(4)) : 0;
+    $('module-help').textContent = module.state === 'locked' ? module.prerequisite : module.state === 'completed' ? 'Well done. Your progress has been saved.' : module.state === 'unlocked' ? 'Your Tier 1 access is active.' : dayNumber > 1 ? 'Available now. Keep your momentum today to earn +50 bonus XP.' : 'Available now. Complete this lesson to unlock the next one immediately.';
     $('submit-button').disabled = busy || stopped;
 
     const lesson = lessons[module.id];
@@ -467,12 +467,6 @@
     if ($('saved-work')) {
       $('saved-work').hidden = module.state !== 'completed';
       $('saved-work-text').textContent = module.submission || 'Your completion is saved.';
-    }
-    if (module.state === 'scheduled') {
-      const date = new Date(module.unlocks_at);
-      const remaining = Math.max(0, date - Date.now());
-      $('module-help').textContent = `Next lesson opens ${date.toLocaleString()} (about ${Math.ceil(remaining / 3600000)} hours). Keep practising your completed lesson while you wait.`;
-      if (!remaining) scheduleRefresh();
     }
     renderStudioForModule(module);
 

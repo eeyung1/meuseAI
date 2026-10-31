@@ -124,6 +124,9 @@ func TestDripDeliversCurrentUnlockedDay(t *testing.T) {
 	now := time.Now().UTC()
 	evaluator.now = func() time.Time { return now }
 	dripStudent(t, database, "day-three", true, "day_3", "engaged", now.Add(-48*time.Hour))
+	if _, err := database.Exec("INSERT INTO student_progress(student_id,day_number,completed) VALUES('day-three',1,TRUE),('day-three',2,TRUE)"); err != nil {
+		t.Fatal(err)
+	}
 	dripStudent(t, database, "unverified", false, "day_1", "pending", now)
 	dripStudent(t, database, "converted", true, "conversion_gate", "engaged", now)
 	dripStudent(t, database, "lapsed", true, "day_2", "lapsed", now)
@@ -236,7 +239,7 @@ func TestDripConfigurationAndDatabaseFailure(t *testing.T) {
 	}
 }
 
-func TestScheduledLessonDoesNotEmailEarly(t *testing.T) {
+func TestSelfPacedLessonDeliversImmediatelyAfterPrerequisite(t *testing.T) {
 	database := dripDatabase(t)
 	dispatcher := &captureDispatcher{}
 	evaluator, err := NewDrip(database, dispatcher)
@@ -248,11 +251,13 @@ func TestScheduledLessonDoesNotEmailEarly(t *testing.T) {
 	evaluator.now = func() time.Time { return now }
 	dripStudent(t, database, "waiting", true, "day_2", "engaged", start)
 	if result, err := evaluator.Evaluate(context.Background()); err != nil || result.Delivered != 0 {
-		t.Fatalf("scheduled email sent: %+v %v", result, err)
+		t.Fatalf("lesson delivered without prerequisite: %+v %v", result, err)
 	}
-	now = start.Add(24 * time.Hour)
+	if _, err := database.Exec("INSERT INTO student_progress(student_id,day_number,completed,completed_at) VALUES('waiting',1,TRUE,$1)", now); err != nil {
+		t.Fatal(err)
+	}
 	if result, err := evaluator.Evaluate(context.Background()); err != nil || result.Delivered != 1 {
-		t.Fatalf("due email missing: %+v %v", result, err)
+		t.Fatalf("immediate lesson delivery missing: %+v %v", result, err)
 	}
 	// An unrelated profile update must not postpone the original 48-hour nudge.
 	if _, err := database.Exec("UPDATE students SET updated_at=$1 WHERE id='waiting'", now.Add(47*time.Hour)); err != nil {
